@@ -623,7 +623,66 @@ function DoublonsAbonnes({ abonnes, releves, paiements, onMerge }) {
   );
 }
 
-function ParametresTab({ gicInfo, params, abonnes, releves, paiements, libellesDepenses, onSaveGicInfo, onSaveTarifs, onSaveLibelles, onMergeAbonnes }) {
+function ResetButton({ onResetData, nombreReleves, nombrePaiements }) {
+  const [etape, setEtape] = React.useState(0); // 0=initial 1=confirmation 2=confirmation finale
+
+  if (etape === 0) {
+    return (
+      <button
+        onClick={() => setEtape(1)}
+        className="w-full flex items-center justify-center gap-2 bg-[#C0392B] text-white rounded-xl py-3 font-700 text-[13px] active:opacity-80"
+      >
+        🗑️  Réinitialiser relevés, paiements et dépenses
+      </button>
+    );
+  }
+  if (etape === 1) {
+    return (
+      <div className="bg-[#FCE4E1] rounded-xl p-3">
+        <p className="text-[12px] font-700 text-[#C0392B] mb-2">
+          Tu es sur le point de supprimer :
+        </p>
+        <ul className="text-[11px] text-[#14232B] mb-3 pl-3 list-disc">
+          <li>{nombreReleves} relevé(s)</li>
+          <li>{nombrePaiements} paiement(s)</li>
+          <li>Toutes les dépenses enregistrées</li>
+        </ul>
+        <p className="text-[11px] font-700 text-[#C0392B] mb-3">Cette action est IRRÉVERSIBLE. Confirmes-tu ?</p>
+        <div className="flex gap-2">
+          <button onClick={() => setEtape(2)} className="flex-1 bg-[#C0392B] text-white rounded-xl py-2.5 font-700 text-[12px] active:opacity-80">
+            Oui, je confirme
+          </button>
+          <button onClick={() => setEtape(0)} className="flex-1 bg-[#F0F6F5] text-[#5B7070] rounded-xl py-2.5 font-700 text-[12px]">
+            Annuler
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (etape === 2) {
+    return (
+      <div className="bg-[#FCE4E1] rounded-xl p-3">
+        <p className="text-[12px] font-700 text-[#C0392B] mb-3">
+          ⚠️ DERNIÈRE CONFIRMATION — Toutes les données seront effacées définitivement.
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { onResetData(); setEtape(0); }}
+            className="flex-1 bg-[#C0392B] text-white rounded-xl py-2.5 font-700 text-[12px] active:opacity-80"
+          >
+            ✅ Confirmer la réinitialisation
+          </button>
+          <button onClick={() => setEtape(0)} className="flex-1 bg-[#F0F6F5] text-[#5B7070] rounded-xl py-2.5 font-700 text-[12px]">
+            Annuler
+          </button>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
+function ParametresTab({ gicInfo, params, abonnes, releves, paiements, libellesDepenses, onSaveGicInfo, onSaveTarifs, onSaveLibelles, onMergeAbonnes, onResetData }) {
   const [nom, setNom] = useState(gicInfo?.nom || "");
   const [logoPreview, setLogoPreview] = useState(gicInfo?.logo || "");
   const [prixUnitaire, setPrixUnitaire] = useState(params.prixUnitaire);
@@ -698,6 +757,15 @@ function ParametresTab({ gicInfo, params, abonnes, releves, paiements, libellesD
         <BigButton icon={Save} onClick={() => onSaveLibelles(libellesList.map((l) => l.trim()).filter(Boolean))}>
           Enregistrer les libellés
         </BigButton>
+      </Card>
+
+      <Card className="mb-4" style={{ border: "2px solid #C0392B" }}>
+        <SectionTitle>⚠️ Zone de réinitialisation</SectionTitle>
+        <p className="text-[11px] text-[#5B7070] mb-3">
+          Cette action supprime définitivement <strong>tous les relevés, paiements et dépenses</strong> enregistrés dans l'application.
+          Les abonnés et les réglages sont conservés. Cette opération est irréversible.
+        </p>
+        <ResetButton onResetData={onResetData} nombreReleves={releves.length} nombrePaiements={paiements.length} />
       </Card>
 
       <p className="text-[11px] text-white/85 text-center" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.35)" }}>
@@ -1429,6 +1497,10 @@ function App() {
                 const abonnes = data.abonnes.filter((a) => !mergeIds.includes(a.id));
                 persist({ ...data, abonnes, releves });
                 showToast(`Doublon(s) fusionné(s) — ${mergeIds.length} fiche(s) supprimée(s), historique conservé`);
+              }}
+              onResetData={() => {
+                persist({ ...data, releves: [], paiements: [], depenses: [] });
+                showToast("Réinitialisation effectuée — relevés, paiements et dépenses supprimés");
               }}
             />
           )}
