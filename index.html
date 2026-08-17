@@ -19,6 +19,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js" onload="window.__loadStatus.babel='OK'" onerror="window.__loadStatus.babel='ECHEC'"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" onload="window.__loadStatus.html2canvas='OK'" onerror="window.__loadStatus.html2canvas='ECHEC'"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" onload="window.__loadStatus.jspdf='OK'" onerror="window.__loadStatus.jspdf='ECHEC'"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" onload="window.__loadStatus.xlsx='OK'" onerror="window.__loadStatus.xlsx='ECHEC'"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" onload="window.__loadStatus.firebaseApp='OK'" onerror="window.__loadStatus.firebaseApp='ECHEC'"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js" onload="window.__loadStatus.firebaseAuth='OK'" onerror="window.__loadStatus.firebaseAuth='ECHEC'"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" onload="window.__loadStatus.firebaseFirestore='OK'" onerror="window.__loadStatus.firebaseFirestore='ECHEC'"></script>
@@ -1935,32 +1936,59 @@ function parseImportText(text) {
 
 function ImportDonnees({ periode, abonnes, onImportDonnees, onClose }) {
   const [importPeriode, setImportPeriode] = useState(periode);
-  const [text, setText] = useState("");
-  const [result, setResult] = useState(null); // { valid, invalid } une fois analysé
+  const [result, setResult] = useState(null);
+  const [nomFichier, setNomFichier] = useState("");
+  const [chargement, setChargement] = useState(false);
+  const [erreurFichier, setErreurFichier] = useState("");
+  const fileInputRef = React.useRef(null);
 
-  const analyser = () => {
-    const r = parseImportText(text);
-    // Repère les noms qui existent déjà dans l'app sous une référence différente : signe probable de doublon
-    const doublonsPotentiels = r.valid.filter((row) => {
-      const refNorm = (row.refAbonne || "").trim().toUpperCase();
-      const nomNorm = normalizeName(row.nom);
-      return abonnes.some((a) => normalizeName(a.nom) === nomNorm && (a.refAbonne || "").trim().toUpperCase() !== refNorm);
-    });
-    setResult({ ...r, doublonsPotentiels });
+  const lireFichierExcel = (file) => {
+    setChargement(true);
+    setErreurFichier("");
+    setResult(null);
+    setNomFichier(file.name);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+        const nonEmpty = rows.filter((r) => r.some((cell) => String(cell).trim() !== ""));
+        const text = nonEmpty.map((r) => r.join("\t")).join("\n");
+        const r = parseImportText(text);
+        const doublonsPotentiels = r.valid.filter((row) => {
+          const refNorm = (row.refAbonne || "").trim().toUpperCase();
+          const nomNorm = normalizeName(row.nom);
+          return abonnes.some((a) => normalizeName(a.nom) === nomNorm && (a.refAbonne || "").trim().toUpperCase() !== refNorm);
+        });
+        setResult({ ...r, doublonsPotentiels });
+      } catch (err) {
+        setErreurFichier("Impossible de lire ce fichier. Vérifie qu'il est au format .xlsx ou .csv.");
+      }
+      setChargement(false);
+    };
+    reader.onerror = () => {
+      setErreurFichier("Erreur lors de la lecture du fichier.");
+      setChargement(false);
+    };
+    reader.readAsArrayBuffer(file);
   };
+
   const confirmer = () => {
     if (!result || result.valid.length === 0) return;
     onImportDonnees(importPeriode, result.valid);
-    setText("");
     setResult(null);
+    setNomFichier("");
     onClose();
   };
 
   return (
     <Card className="mb-3 !border-2 !border-dashed !border-[#0F5C6B]/40">
-      <p className="text-[13px] font-700 text-[#0F5C6B] mb-1">Importer des relevés/factures d'un autre mois</p>
+      <p className="text-[13px] font-700 text-[#0F5C6B] mb-1">Importer des relevés/factures</p>
       <p className="text-[11px] text-[#5B7070] mb-3">
-        Dans Excel, mets tes colonnes exactement dans cet ordre, sélectionne-les, copie (Ctrl+C), puis colle-les ci-dessous :
+        Sélectionne ton fichier Excel (.xlsx) ou CSV. Les colonnes doivent être dans cet ordre :
       </p>
       <div className="bg-[#F0F6F5] rounded-lg p-2 mb-3 overflow-x-auto">
         <code className="text-[9.5px] text-[#14232B] whitespace-nowrap">
@@ -1972,19 +2000,35 @@ function ImportDonnees({ periode, abonnes, onImportDonnees, onClose }) {
         <input type="month" className={inputCls} value={importPeriode} onChange={(e) => setImportPeriode(e.target.value)} />
       </Field>
 
-      <Field label="Données collées (une ligne par abonné)">
-        <textarea
-          className={inputCls + " min-h-[110px]"}
-          value={text}
-          onChange={(e) => { setText(e.target.value); setResult(null); }}
-          placeholder={"Colle ici tes données copiées depuis Excel…\nExemple : 1\tAIME .\t1\tFACE ZONSOP\t23305\t313\t317\t500\t500\t7000\t2000\t2500"}
-        />
-      </Field>
+      <input
+        type="file"
+        accept=".xlsx,.xls,.csv"
+        ref={fileInputRef}
+        style={{ display: "none" }}
+        onChange={(e) => { if (e.target.files && e.target.files[0]) lireFichierExcel(e.target.files[0]); }}
+      />
 
-      {!result && (
-        <BigButton icon={Search} color="#0F5C6B" onClick={analyser}>
-          Analyser les données collées
-        </BigButton>
+      <button
+        onClick={() => { if (fileInputRef.current) fileInputRef.current.click(); }}
+        className="w-full flex items-center justify-center gap-2 bg-[#0F5C6B] text-white rounded-xl py-3.5 font-700 text-[14px] mb-3 active:opacity-80"
+      >
+        📂  Choisir un fichier Excel (.xlsx / .csv)
+      </button>
+
+      {nomFichier && !chargement && (
+        <p className="text-[11px] text-[#5B7070] mb-2">
+          📄 Fichier sélectionné : <strong>{nomFichier}</strong>
+        </p>
+      )}
+
+      {chargement && (
+        <p className="text-[12px] text-[#0F5C6B] mb-2">⏳ Lecture du fichier en cours…</p>
+      )}
+
+      {erreurFichier && (
+        <div className="bg-[#FCE4E1] text-[#C0392B] text-[11px] rounded-xl px-3 py-2 mb-3">
+          ⚠️ {erreurFichier}
+        </div>
       )}
 
       {result && (
@@ -2004,10 +2048,10 @@ function ImportDonnees({ periode, abonnes, onImportDonnees, onClose }) {
           )}
           {result.doublonsPotentiels && result.doublonsPotentiels.length > 0 && (
             <div className="bg-[#FCF3E3] text-[#8A6316] text-[11px] rounded-xl px-3 py-2 mb-1.5">
-              ⚠️ {result.doublonsPotentiels.length} nom(s) collé(s) correspondent déjà à un abonné existant, mais avec une référence différente — vérifie qu'il ne s'agit pas d'un doublon avant de confirmer :
+              ⚠️ {result.doublonsPotentiels.length} nom(s) correspondent déjà à un abonné existant sous une référence différente — vérifie avant de confirmer :
               <ul className="mt-1 pl-4 list-disc">
                 {result.doublonsPotentiels.slice(0, 5).map((r, i) => (
-                  <li key={i}>{r.nom} (réf. collée : {r.refAbonne})</li>
+                  <li key={i}>{r.nom} (réf. : {r.refAbonne})</li>
                 ))}
               </ul>
             </div>
