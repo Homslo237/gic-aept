@@ -2081,6 +2081,16 @@ function ImportDonnees({ periode, abonnes, onImportDonnees, onClose }) {
   );
 }
 
+// Calcule automatiquement la prochaine référence abonné (001, 002, 003...)
+function prochainRef(abonnes) {
+  let max = 0;
+  abonnes.forEach((a) => {
+    const num = parseInt(String(a.refAbonne || "").replace(/[^0-9]/g, ""), 10);
+    if (!isNaN(num) && num > max) max = num;
+  });
+  return String(max + 1).padStart(3, "0");
+}
+
 function Abonnes({ abonnes, zones, periode, canManage, canAdd, onAdd, onUpdate, onDelete, onImportDonnees, onFicheSuivi, onFicheInsolvables, onFicheSuspendre }) {
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -2133,7 +2143,7 @@ function Abonnes({ abonnes, zones, periode, canManage, canAdd, onAdd, onUpdate, 
           <input className={inputCls + " pl-9"} placeholder="Rechercher nom, zone, réf…" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         {canAdd && (
-          <button onClick={() => (showForm ? cancelForm() : (setEditingId(null), setForm({ ...empty, refAbonne: "" }), setShowForm(true)))} className="shrink-0 w-12 h-12 rounded-xl bg-[#0F5C6B] text-white flex items-center justify-center active:opacity-80">
+          <button onClick={() => (showForm ? cancelForm() : (setEditingId(null), setForm({ ...empty, refAbonne: prochainRef(abonnes) }), setShowForm(true)))} className="shrink-0 w-12 h-12 rounded-xl bg-[#0F5C6B] text-white flex items-center justify-center active:opacity-80">
             {showForm ? <X size={20} /> : <Plus size={20} />}
           </button>
         )}
@@ -2175,7 +2185,7 @@ function Abonnes({ abonnes, zones, periode, canManage, canAdd, onAdd, onUpdate, 
           {editingId && <p className="text-[12px] font-700 text-[#0F5C6B] mb-2">✏️ Modification de l'abonné</p>}
           <form onSubmit={submit}>
             <Field label="Réf. abonné *">
-              <input className={inputCls} value={form.refAbonne} onChange={(e) => setForm({ ...form, refAbonne: e.target.value })} placeholder="Ex: A001" required />
+              <input className={inputCls} value={form.refAbonne} onChange={(e) => setForm({ ...form, refAbonne: e.target.value })} placeholder="Auto-généré (modifiable)" required />
             </Field>
             <Field label="Nom & prénom *">
               <input className={inputCls} value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} required />
