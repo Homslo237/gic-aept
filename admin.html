@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Homslo/vision — Console Admin</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── CHARTE HOMSLO/VISION ── */
+:root {
+  --hv-blue:    #1B5FA8;   /* bleu logo principal */
+  --hv-blue2:   #134A85;   /* bleu foncé */
+  --hv-blue3:   #0D3566;   /* bleu très foncé — fond */
+  --hv-orange:  #E8722A;   /* orange slogan */
+  --hv-orange2: #C75A1A;   /* orange foncé */
+  --hv-cyan:    #2EC4D4;   /* nœud cyan du réseau */
+  --hv-purple:  #9B6FD4;   /* nœud violet */
+  --hv-green:   #2ECC71;   /* succès */
+  --hv-red:     #E74C3C;
+  --hv-yellow:  #F0C040;   /* nœud jaune */
+
+  --bg:      #071325;      /* fond nuit bleue profonde */
+  --surface: #0D1E38;
+  --card:    #112240;
+  --border:  rgba(27,95,168,0.25);
+  --border2: rgba(27,95,168,0.12);
+  --text:    #E8F0F8;
+  --muted:   rgba(232,240,248,0.45);
+  --warm:    #FCE8B8;
+}
+
+html, body {
+  min-height: 100%; background: var(--bg);
+  color: var(--text); font-family: "Manrope", sans-serif;
+}
+
+/* ── RÉSEAU ANIMÉ EN ARRIÈRE-PLAN ── */
+.network-bg {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+}
+.network-bg svg { width: 100%; height: 100%; opacity: 0.06; }
+.net-line { stroke: var(--hv-blue); stroke-width: 1; fill: none; }
+.net-dot  { fill: var(--hv-blue); animation: pulse-dot 3s ease-in-out infinite; }
+.net-dot:nth-child(2n) { animation-delay: 0.8s; fill: var(--hv-cyan); }
+.net-dot:nth-child(3n) { animation-delay: 1.5s; fill: var(--hv-orange); }
+@keyframes pulse-dot {
+  0%,100% { r: 4; opacity: 0.6; }
+  50%      { r: 7; opacity: 1;   }
+}
+
+/* ── LOGIN ── */
+#login-screen {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  position: relative; z-index: 1; padding: 24px;
+}
+.login-card {
+  width: 100%; max-width: 420px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  box-shadow: 0 0 0 1px rgba(27,95,168,0.1), 0 40px 80px rgba(0,0,0,0.6);
+  overflow: hidden;
+}
+.login-top {
+  background: linear-gradient(135deg, var(--hv-blue3) 0%, var(--hv-blue2) 100%);
+  padding: 32px 32px 28px;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+}
+.login-logo-img {
+  width: 200px; height: auto; display: block; margin: 0 auto 16px;
+  filter: brightness(0) invert(1); /* logo blanc sur fond bleu */
+}
+.login-tag {
+  display: inline-block;
+  background: rgba(232,114,42,0.2); border: 1px solid rgba(232,114,42,0.4);
+  color: var(--hv-orange); font-size: 10px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 4px 14px; border-radius: 20px;
+}
+.login-body { padding: 28px 32px 32px; }
+.login-title { font-family: "Space Grotesk", sans-serif; font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+.login-sub { font-size: 12px; color: var(--muted); margin-bottom: 24px; }
+.login-error {
+  background: rgba(231,76,60,0.12); border: 1px solid rgba(231,76,60,0.3);
+  border-radius: 10px; padding: 10px 14px; font-size: 12px; color: #FFB3A7;
+  margin-bottom: 16px; display: none;
+}
+.field-label {
+  display: block; font-size: 10px; font-weight: 700; color: var(--hv-cyan);
+  letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px;
+}
+.field-wrap {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(27,95,168,0.08); border: 1.5px solid var(--border);
+  border-radius: 10px; padding: 10px 14px; margin-bottom: 16px;
+  transition: border-color 0.2s;
+}
+.field-wrap:focus-within { border-color: var(--hv-blue); }
+.field-wrap input {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--text); font-family: "Manrope", sans-serif; font-size: 14px;
+}
+.field-icon { font-size: 16px; opacity: 0.6; }
+.btn-login {
+  width: 100%; padding: 14px; margin-top: 8px;
+  border-radius: 12px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, var(--hv-orange) 0%, var(--hv-orange2) 100%);
+  color: #fff; font-family: "Space Grotesk", sans-serif;
+  font-size: 14px; font-weight: 800; letter-spacing: 0.5px;
+  box-shadow: 0 8px 24px rgba(232,114,42,0.35);
+  transition: opacity 0.2s, transform 0.1s;
+}
+.btn-login:hover { opacity: 0.92; }
+.btn-login:active { transform: scale(0.98); }
+.btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── DASHBOARD ── */
+#dashboard { display: none; min-height: 100vh; flex-direction: column; position: relative; z-index: 1; }
+
+/* Header */
+.header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(7,19,37,0.94); backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px; height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.header-brand { display: flex; align-items: center; gap: 12px; }
+.header-logo {
+  height: 32px; width: auto;
+  filter: brightness(0) invert(1) sepia(0) saturate(1) hue-rotate(0deg);
+}
+.header-divider { width: 1px; height: 24px; background: var(--border); }
+.header-module {
+  font-size: 11px; font-weight: 700; color: var(--hv-orange);
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.header-right { display: flex; align-items: center; gap: 10px; }
+.header-email {
+  font-size: 11px; color: var(--muted); font-family: monospace;
+  background: rgba(27,95,168,0.12); padding: 4px 10px; border-radius: 6px;
+}
+.btn-refresh {
+  padding: 7px 14px; border-radius: 8px;
+  border: 1px solid var(--border); background: rgba(27,95,168,0.1);
+  color: var(--hv-cyan); font-size: 11px; font-weight: 700; cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-refresh:hover { background: rgba(27,95,168,0.25); }
+.btn-logout {
+  padding: 7px 14px; border-radius: 8px;
+  border: 1px solid rgba(231,76,60,0.25); background: rgba(231,76,60,0.06);
+  color: #FFB3A7; font-size: 11px; font-weight: 700; cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-logout:hover { background: rgba(231,76,60,0.18); }
+
+/* Main */
+.main { flex: 1; padding: 28px 20px 48px; max-width: 1100px; margin: 0 auto; width: 100%; }
+
+/* Section label */
+.section-label {
+  font-size: 10px; font-weight: 700; color: var(--hv-orange);
+  letter-spacing: 2px; text-transform: uppercase;
+  margin-bottom: 14px; padding-left: 2px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-label::after {
+  content: ""; flex: 1; height: 1px;
+  background: linear-gradient(90deg, var(--border), transparent);
+}
+
+/* Stat cards */
+.stats-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 32px; }
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 20px; padding: 22px 20px 18px;
+  position: relative; overflow: hidden;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.stat-card:hover { border-color: var(--hv-blue); transform: translateY(-2px); }
+
+/* Barre de remplissage liquide en bas */
+.stat-card::before {
+  content: ""; position: absolute; bottom: 0; left: 0; right: 0;
+  height: 3px; transform: scaleX(0); transform-origin: left;
+  animation: liquid-fill 1.4s cubic-bezier(0.4,0,0.2,1) forwards;
+}
+.stat-card:nth-child(1)::before { background: linear-gradient(90deg, var(--hv-blue), var(--hv-cyan)); animation-delay: 0.1s; }
+.stat-card:nth-child(2)::before { background: linear-gradient(90deg, var(--hv-orange), var(--hv-yellow)); animation-delay: 0.3s; }
+.stat-card:nth-child(3)::before { background: linear-gradient(90deg, var(--hv-green), var(--hv-cyan)); animation-delay: 0.5s; }
+@keyframes liquid-fill { to { transform: scaleX(1); } }
+
+/* Icône réseau dans coin supérieur droit */
+.stat-net-icon {
+  position: absolute; top: 14px; right: 16px;
+  font-size: 20px; opacity: 0.18;
+}
+.stat-icon { font-size: 24px; margin-bottom: 12px; }
+.stat-value {
+  font-family: "Space Grotesk", sans-serif; font-size: 36px; font-weight: 800;
+  color: var(--text); line-height: 1; margin-bottom: 6px;
+  animation: fadeUp 0.6s ease both;
+}
+.stat-card:nth-child(2) .stat-value { animation-delay: 0.15s; }
+.stat-card:nth-child(3) .stat-value { animation-delay: 0.3s; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+.stat-label { font-size: 12px; color: var(--muted); font-weight: 600; }
+.stat-accent { font-size: 10px; font-weight: 700; margin-top: 4px; }
+.stat-card:nth-child(1) .stat-accent { color: var(--hv-cyan); }
+.stat-card:nth-child(2) .stat-accent { color: var(--hv-orange); }
+.stat-card:nth-child(3) .stat-accent { color: var(--hv-green); }
+
+/* Table card */
+.table-card {
+  background: var(--card); border: 1px solid var(--border2);
+  border-radius: 20px; overflow: hidden;
+}
+.table-header {
+  padding: 18px 22px; border-bottom: 1px solid var(--border2);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.table-title {
+  font-family: "Space Grotesk", sans-serif; font-size: 15px; font-weight: 800;
+  display: flex; align-items: center; gap: 8px;
+}
+.table-title-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--hv-orange);
+  box-shadow: 0 0 8px var(--hv-orange); animation: blink 2s ease infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.table-count {
+  font-size: 11px; color: var(--hv-cyan); font-weight: 700;
+  background: rgba(46,196,212,0.1); border: 1px solid rgba(46,196,212,0.2);
+  border-radius: 20px; padding: 3px 12px;
+}
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  padding: 11px 18px; text-align: left;
+  font-size: 9px; font-weight: 800; color: var(--hv-blue);
+  letter-spacing: 1.5px; text-transform: uppercase;
+  border-bottom: 1px solid var(--border2); white-space: nowrap;
+  background: rgba(27,95,168,0.04);
+}
+tbody tr { border-bottom: 1px solid var(--border2); transition: background 0.15s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: rgba(27,95,168,0.08); }
+tbody td { padding: 14px 18px; font-size: 13px; vertical-align: middle; }
+.td-name { font-weight: 700; color: var(--text); font-size: 13px; }
+.td-id { font-family: monospace; font-size: 10px; color: var(--muted); margin-top: 2px; }
+.td-muted { color: var(--muted); font-size: 12px; }
+.td-mono { font-family: monospace; font-size: 11px; color: var(--muted); }
+.nb-chip {
+  font-family: "Space Grotesk", sans-serif; font-size: 16px; font-weight: 800;
+  color: var(--hv-cyan);
+}
+
+.plan-select {
+  background: rgba(27,95,168,0.1); border: 1px solid var(--border);
+  color: var(--text); border-radius: 8px; padding: 5px 10px;
+  font-size: 11px; font-family: "Manrope", sans-serif;
+  font-weight: 700; cursor: pointer; outline: none;
+  transition: border-color 0.2s;
+}
+.plan-select:focus { border-color: var(--hv-blue); }
+
+.btn-del {
+  padding: 5px 12px; border-radius: 8px;
+  border: 1px solid rgba(231,76,60,0.2); background: rgba(231,76,60,0.06);
+  color: rgba(255,179,167,0.7); font-size: 11px; font-weight: 700;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-del:hover { border-color: var(--hv-red); color: #FFB3A7; background: rgba(231,76,60,0.15); }
+
+/* Badge plan */
+.badge {
+  display: inline-block; padding: 3px 10px; border-radius: 20px;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase;
+}
+.badge-starter { background: rgba(46,196,212,0.1); color: var(--hv-cyan); border: 1px solid rgba(46,196,212,0.2); }
+.badge-pro     { background: rgba(232,114,42,0.12); color: var(--hv-orange); border: 1px solid rgba(232,114,42,0.25); }
+.badge-premium { background: rgba(46,204,113,0.1); color: var(--hv-green); border: 1px solid rgba(46,204,113,0.2); }
+
+/* Loading / Empty */
+.loading, .empty-state {
+  text-align: center; padding: 56px 24px; color: var(--muted); font-size: 14px;
+}
+.spinner {
+  width: 36px; height: 36px; border: 3px solid var(--border);
+  border-top-color: var(--hv-blue); border-right-color: var(--hv-cyan);
+  border-radius: 50%; animation: spin 0.9s linear infinite;
+  margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty-icon { font-size: 48px; margin-bottom: 14px; opacity: 0.5; }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 22px; font-size: 13px; font-weight: 700;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5); z-index: 9999;
+  opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+.toast.success { border-color: var(--hv-green); color: #A8F0C8; }
+.toast.error   { border-color: var(--hv-red);   color: #FFB3A7; }
+
+/* Footer */
+.footer {
+  text-align: center; padding: 20px; font-size: 10px; color: var(--muted);
+  border-top: 1px solid var(--border2); letter-spacing: 0.5px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.footer img { height: 18px; width: auto; opacity: 0.35; filter: brightness(0) invert(1); }
+
+@media (max-width: 640px) {
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .stat-value { font-size: 28px; }
+  .header-email { display: none; }
+  thead th:nth-child(5), tbody td:nth-child(5),
+  thead th:nth-child(6), tbody td:nth-child(6) { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- Réseau animé SVG -->
+<div class="network-bg">
+  <svg viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice">
+    <line class="net-line" x1="100" y1="150" x2="300" y2="80"/>
+    <line class="net-line" x1="300" y1="80"  x2="500" y2="200"/>
+    <line class="net-line" x1="500" y1="200" x2="700" y2="100"/>
+    <line class="net-line" x1="700" y1="100" x2="900" y2="250"/>
+    <line class="net-line" x1="900" y1="250" x2="1100" y2="150"/>
+    <line class="net-line" x1="100" y1="150" x2="200" y2="350"/>
+    <line class="net-line" x1="200" y1="350" x2="400" y2="450"/>
+    <line class="net-line" x1="400" y1="450" x2="600" y2="380"/>
+    <line class="net-line" x1="600" y1="380" x2="800" y2="500"/>
+    <line class="net-line" x1="800" y1="500" x2="1000" y2="400"/>
+    <line class="net-line" x1="1000" y1="400" x2="1100" y2="150"/>
+    <line class="net-line" x1="300" y1="80"  x2="200" y2="350"/>
+    <line class="net-line" x1="500" y1="200" x2="600" y2="380"/>
+    <line class="net-line" x1="700" y1="100" x2="800" y2="500"/>
+    <line class="net-line" x1="900" y1="250" x2="1000" y2="400"/>
+    <line class="net-line" x1="200" y1="350" x2="300" y2="600"/>
+    <line class="net-line" x1="400" y1="450" x2="500" y2="620"/>
+    <line class="net-line" x1="600" y1="380" x2="700" y2="620"/>
+    <line class="net-line" x1="800" y1="500" x2="900" y2="640"/>
+    <circle class="net-dot" cx="100" cy="150" r="5"/>
+    <circle class="net-dot" cx="300" cy="80"  r="5"/>
+    <circle class="net-dot" cx="500" cy="200" r="5"/>
+    <circle class="net-dot" cx="700" cy="100" r="5"/>
+    <circle class="net-dot" cx="900" cy="250" r="5"/>
+    <circle class="net-dot" cx="1100" cy="150" r="5"/>
+    <circle class="net-dot" cx="200" cy="350" r="5"/>
+    <circle class="net-dot" cx="400" cy="450" r="5"/>
+    <circle class="net-dot" cx="600" cy="380" r="5"/>
+    <circle class="net-dot" cx="800" cy="500" r="5"/>
+    <circle class="net-dot" cx="1000" cy="400" r="5"/>
+  </svg>
+</div>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-top">
+      <img class="login-logo-img" src="./logo-homslovision.png" alt="Homslo/vision"/>
+      <span class="login-tag">Console Administration · SaaS</span>
+    </div>
+    <div class="login-body">
+      <h1 class="login-title">Accès réservé</h1>
+      <p class="login-sub">Connectez-vous avec votre compte administrateur Homslo/vision.</p>
+      <div class="login-error" id="login-error"></div>
+      <label class="field-label" for="f-email">Email</label>
+      <div class="field-wrap">
+        <span class="field-icon">✉️</span>
+        <input id="f-email" type="email" placeholder="votre@email.com" autocomplete="email"/>
+      </div>
+      <label class="field-label" for="f-pass">Mot de passe</label>
+      <div class="field-wrap">
+        <span class="field-icon">🔐</span>
+        <input id="f-pass" type="password" placeholder="••••••••" autocomplete="current-password"/>
+      </div>
+      <button class="btn-login" id="login-btn" onclick="doLogin()">ACCÉDER À LA CONSOLE</button>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <header class="header">
+    <div class="header-brand">
+      <img class="header-logo" src="./logo-homslovision.png" alt="Homslo/vision"/>
+      <div class="header-divider"></div>
+      <span class="header-module">Console Admin</span>
+    </div>
+    <div class="header-right">
+      <span class="header-email" id="admin-email"></span>
+      <button class="btn-refresh" onclick="loadData()">↻ Actualiser</button>
+      <button class="btn-logout" onclick="doLogout()">Déconnexion</button>
+    </div>
+  </header>
+
+  <div class="main">
+
+    <!-- Stats -->
+    <div class="section-label">Vue globale</div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-net-icon">🏢</span>
+        <div class="stat-icon">🌐</div>
+        <div class="stat-value" id="stat-sdes">—</div>
+        <div class="stat-label">SDEs inscrites</div>
+        <div class="stat-accent" id="stat-sdes-sub"></div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-net-icon">👥</span>
+        <div class="stat-icon">💧</div>
+        <div class="stat-value" id="stat-abonnes">—</div>
+        <div class="stat-label">Abonnés total</div>
+        <div class="stat-accent" id="stat-abonnes-sub"></div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-net-icon">✅</span>
+        <div class="stat-icon">📡</div>
+        <div class="stat-value" id="stat-actives">—</div>
+        <div class="stat-label">SDEs actives (30 j)</div>
+        <div class="stat-accent" id="stat-actives-sub"></div>
+      </div>
+    </div>
+
+    <!-- Tableau SDEs -->
+    <div class="section-label">Répertoire des SDEs</div>
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-title">
+          <span class="table-title-dot"></span>
+          Services de Distribution d'Eau
+        </div>
+        <span class="table-count" id="table-count">0 SDE</span>
+      </div>
+      <div id="table-body">
+        <div class="loading">
+          <div class="spinner"></div>
+          <div>Chargement des données…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <img src="./logo-homslovision.png" alt="Homslo/vision"/>
+    Console Admin · Accès confidentiel · Homs-Water Distribution SaaS
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Firebase ──
+const firebaseConfig = {
+  apiKey: "AIzaSyC-jrkO8WlsBpBgp0YHs5acPJ1YvfwoPvI",
+  authDomain: "gic-aept.firebaseapp.com",
+  projectId: "gic-aept",
+  storageBucket: "gic-aept.firebasestorage.app",
+  messagingSenderId: "753378492164",
+  appId: "1:753378492164:web:8259f16658556b69955a51",
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+// ── Emails autorisés (ajoute le tien ici) ──
+const ADMIN_EMAILS = [
+  "homslovision@gmail.com",   // Administrateur Homslo/Vision
+  "admin.aept@app.com",       // compte GIC AEPT (rétro-compatibilité)
+];
+
+// ── Auth ──
+auth.onAuthStateChanged(user => {
+  if (user && ADMIN_EMAILS.includes(user.email)) {
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("dashboard").style.display    = "flex";
+    document.getElementById("admin-email").textContent    = user.email;
+    loadData();
+  } else if (user) {
+    auth.signOut();
+    showLoginError("Accès refusé. Ce compte n'est pas autorisé.");
+  } else {
+    document.getElementById("login-screen").style.display = "flex";
+    document.getElementById("dashboard").style.display    = "none";
+  }
+});
+
+document.getElementById("f-pass").addEventListener("keydown", e => {
+  if (e.key === "Enter") doLogin();
+});
+
+async function doLogin() {
+  const email = document.getElementById("f-email").value.trim();
+  const pass  = document.getElementById("f-pass").value;
+  const btn   = document.getElementById("login-btn");
+  hideLoginError();
+  if (!email || !pass) { showLoginError("Saisissez votre email et mot de passe."); return; }
+  btn.disabled = true; btn.textContent = "Connexion en cours…";
+  try {
+    await auth.signInWithEmailAndPassword(email, pass);
+  } catch(e) {
+    const msg =
+      (e.code === "auth/wrong-password" || e.code === "auth/invalid-credential" || e.code === "auth/invalid-login-credentials")
+        ? "Email ou mot de passe incorrect." :
+      e.code === "auth/user-not-found" ? "Aucun compte trouvé avec cet email." :
+      e.code === "auth/too-many-requests" ? "Trop de tentatives. Patientez quelques minutes." :
+      e.message || String(e);
+    showLoginError(msg);
+    btn.disabled = false; btn.textContent = "ACCÉDER À LA CONSOLE";
+  }
+}
+
+function doLogout() {
+  auth.signOut();
+  showToast("Déconnecté.", "success");
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById("login-error");
+  el.textContent = "⚠️ " + msg; el.style.display = "block";
+}
+function hideLoginError() {
+  document.getElementById("login-error").style.display = "none";
+}
+
+// ── Chargement données ──
+let sdesData = [];
+
+async function loadData() {
+  setTableLoading();
+  try {
+    const usersSnap = await db.collection("users").get();
+    const users = [];
+    usersSnap.forEach(doc => users.push({ uid: doc.id, ...doc.data() }));
+
+    // Dédupliquer par gicId
+    const byGicId = {};
+    users.forEach(u => {
+      const gid = u.gicId || "gic-aept";
+      if (!byGicId[gid] || (u.createdAt||"") > (byGicId[gid].createdAt||"")) {
+        byGicId[gid] = u;
+      }
+    });
+
+    const sdes = [];
+    await Promise.all(Object.entries(byGicId).map(async ([gicId, user]) => {
+      let nbAbonnes = 0, lastActivity = null;
+      try {
+        const ref = gicId === "gic-aept"
+          ? db.collection("app_data").doc("main")
+          : db.collection("gics").doc(gicId).collection("data").doc("main");
+        const snap = await ref.get();
+        if (snap.exists) {
+          const d = snap.data();
+          nbAbonnes = (d.abonnes||[]).length;
+          const dates = [
+            ...((d.paiements||[]).map(p=>p.date||p.createdAt||"")),
+            ...((d.releves||[]).map(r=>r.date||r.createdAt||"")),
+          ].filter(Boolean).sort().reverse();
+          lastActivity = dates[0] || null;
+        }
+      } catch(e) {}
+      sdes.push({
+        gicId, uid: user.uid,
+        nom: user.nom || gicId,
+        email: user.email || "—",
+        plan: user.plan || "starter",
+        createdAt: user.createdAt || null,
+        nbAbonnes, lastActivity,
+      });
+    }));
+
+    sdes.sort((a,b) => (b.createdAt||"") > (a.createdAt||"") ? 1 : -1);
+    sdesData = sdes;
+    renderStats(sdes);
+    renderTable(sdes);
+  } catch(e) {
+    document.getElementById("table-body").innerHTML =
+      `<div class="empty-state"><div class="empty-icon">⚠️</div>${esc(e.message||String(e))}</div>`;
+  }
+}
+
+function renderStats(sdes) {
+  const total   = sdes.length;
+  const abonnes = sdes.reduce((s,d) => s + d.nbAbonnes, 0);
+  const cutoff  = new Date(); cutoff.setDate(cutoff.getDate()-30);
+  const cutStr  = cutoff.toISOString().slice(0,10);
+  const actives = sdes.filter(s => s.lastActivity && s.lastActivity >= cutStr).length;
+
+  animCount("stat-sdes",    total);
+  animCount("stat-abonnes", abonnes);
+  animCount("stat-actives", actives);
+
+  const plans = sdes.reduce((acc,s) => { acc[s.plan]=(acc[s.plan]||0)+1; return acc; }, {});
+  document.getElementById("stat-sdes-sub").textContent =
+    `${plans.pro||0} Pro · ${plans.premium||0} Premium`;
+  document.getElementById("stat-abonnes-sub").textContent =
+    total ? `Moy. ${Math.round(abonnes/total)} / SDE` : "";
+  document.getElementById("stat-actives-sub").textContent =
+    total ? `${Math.round(actives/total*100)}% du réseau` : "";
+}
+
+function animCount(id, target) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const dur = 900, start = performance.now();
+  const step = now => {
+    const p = Math.min((now-start)/dur, 1);
+    el.textContent = Math.round(p * target);
+    if (p < 1) requestAnimationFrame(step);
+    else el.textContent = target;
+  };
+  requestAnimationFrame(step);
+}
+
+function renderTable(sdes) {
+  const cnt = document.getElementById("table-count");
+  cnt.textContent = sdes.length + " SDE" + (sdes.length > 1 ? "s" : "");
+
+  if (!sdes.length) {
+    document.getElementById("table-body").innerHTML =
+      `<div class="empty-state"><div class="empty-icon">🌐</div>Aucune SDE inscrite pour l'instant.</div>`;
+    return;
+  }
+
+  const fmtDate = iso => {
+    if (!iso) return "—";
+    const d = iso.slice(0,10).split("-");
+    return d.length===3 ? d[2]+"/"+d[1]+"/"+d[0] : iso.slice(0,10);
+  };
+  const planLabel = p => ({ starter:"Gratuit", pro:"Pro · 10k", premium:"Premium · 20k" }[p]||p);
+  const badgeCls  = p => ({ pro:"badge-pro", premium:"badge-premium" }[p]||"badge-starter");
+
+  document.getElementById("table-body").innerHTML = `
+    <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>SDE</th><th>Email</th><th>Plan</th><th>Abonnés</th>
+        <th>Inscrite le</th><th>Dernière activité</th><th>Action</th>
+      </tr></thead>
+      <tbody>
+        ${sdes.map((s,i) => `
+          <tr>
+            <td>
+              <div class="td-name">${esc(s.nom)}</div>
+              <div class="td-id">${esc(s.gicId)}</div>
+            </td>
+            <td class="td-muted">${esc(s.email)}</td>
+            <td>
+              <select class="plan-select" onchange="updatePlan('${esc(s.uid)}',this.value,${i})">
+                <option value="starter" ${s.plan==="starter"?"selected":""}>Gratuit</option>
+                <option value="pro"     ${s.plan==="pro"    ?"selected":""}>Pro · 10k FCFA</option>
+                <option value="premium" ${s.plan==="premium"?"selected":""}>Premium · 20k</option>
+              </select>
+            </td>
+            <td><span class="nb-chip">${s.nbAbonnes}</span></td>
+            <td class="td-mono">${fmtDate(s.createdAt)}</td>
+            <td class="td-mono">${fmtDate(s.lastActivity)}</td>
+            <td>
+              <button class="btn-del" onclick="confirmDel('${esc(s.uid)}','${esc(s.nom)}')">🗑 Supprimer</button>
+            </td>
+          </tr>`).join("")}
+      </tbody>
+    </table></div>`;
+}
+
+async function updatePlan(uid, plan, idx) {
+  try {
+    await db.collection("users").doc(uid).update({ plan });
+    sdesData[idx].plan = plan;
+    showToast("Plan mis à jour → " + plan, "success");
+  } catch(e) {
+    showToast("Erreur : " + (e.message||e), "error");
+    loadData();
+  }
+}
+
+function confirmDel(uid, nom) {
+  if (!confirm(`Supprimer la SDE "${nom}" ?\n\nCela supprime uniquement son profil (users/${uid}).\nLes données Firestore restent dans gics/ et doivent être supprimées via la console Firebase.`)) return;
+  db.collection("users").doc(uid).delete()
+    .then(() => { showToast("Profil supprimé : " + nom, "success"); loadData(); })
+    .catch(e => showToast("Erreur : " + (e.message||e), "error"));
+}
+
+function setTableLoading() {
+  document.getElementById("table-body").innerHTML =
+    `<div class="loading"><div class="spinner"></div><div>Chargement…</div></div>`;
+}
+
+let toastTimer;
+function showToast(msg, type="success") {
+  const el = document.getElementById("toast");
+  el.textContent = (type==="success"?"✓ ":"⚠ ") + msg;
+  el.className = "toast " + type + " show";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove("show"), 3200);
+}
+
+function esc(s) {
+  return String(s||"")
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+</script>
+</body>
+</html>
