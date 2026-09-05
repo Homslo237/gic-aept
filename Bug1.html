@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Homs-Water Distribution — Smart Water Management</title>
+<meta name="theme-color" content="#0F5C6B" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Homs-Water" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<script>window.__loadStatus = { react: "?", reactDom: "?", babel: "?", html2canvas: "?", jspdf: "?" };</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" onload="window.__loadStatus.react='OK'" onerror="window.__loadStatus.react='ECHEC'"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" onload="window.__loadStatus.reactDom='OK'" onerror="window.__loadStatus.reactDom='ECHEC'"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js" onload="window.__loadStatus.babel='OK'" onerror="window.__loadStatus.babel='ECHEC'"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" onload="window.__loadStatus.html2canvas='OK'" onerror="window.__loadStatus.html2canvas='ECHEC'"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" onload="window.__loadStatus.jspdf='OK'" onerror="window.__loadStatus.jspdf='ECHEC'"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" onload="window.__loadStatus.xlsx='OK'" onerror="window.__loadStatus.xlsx='ECHEC'"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" onload="window.__loadStatus.firebaseApp='OK'" onerror="window.__loadStatus.firebaseApp='ECHEC'"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js" onload="window.__loadStatus.firebaseAuth='OK'" onerror="window.__loadStatus.firebaseAuth='ECHEC'"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" onload="window.__loadStatus.firebaseFirestore='OK'" onerror="window.__loadStatus.firebaseFirestore='ECHEC'"></script>
+<style>
+/* ---- Styles utilitaires generes localement (remplace la dependance a cdn.tailwindcss.com) ---- */
+.\!bg-\[\#F0F6F5\] { background-color: #F0F6F5 !important; }
+.\!p-3 { padding: 0.75rem !important; }
+.-translate-x-1\/2 { transform: translateX(-50%); }
+.-translate-y-1\/2 { transform: translateY(-50%); }
+.absolute { position: absolute; }
+.active\:bg-\[\#F0F6F5\]:active { background-color: #F0F6F5; }
+.active\:opacity-80:active { opacity: 0.8; }
+.animate-spin { animation: sde-spin 1s linear infinite; }
+.bg-\[\#0F5C6B\] { background-color: #0F5C6B; }
+.bg-\[\#14232B\] { background-color: #14232B; }
+.bg-\[\#14232B\]\/60 { background-color: rgba(20,35,43,0.6); }
+.bg-\[\#2E8B57\] { background-color: #2E8B57; }
+.bg-\[\#DCF3E6\] { background-color: #DCF3E6; }
+.bg-\[\#E8A33D\] { background-color: #E8A33D; }
+.bg-\[\#F0F6F5\] { background-color: #F0F6F5; }
+.bg-\[\#F5F8F7\] { background-color: #F5F8F7; }
+.bg-\[\#FCE4E1\] { background-color: #FCE4E1; }
+.bg-transparent { background-color: transparent; }
+.bg-white { background-color: #fff; }
+.block { display: block; }
+.border { border-width: 1px; border-style: solid; }
+.border-\[\#0F5C6B\]\/40 { border-color: rgba(15,92,107,0.4); }
+.border-\[\#E2E8E7\] { border-color: #E2E8E7; }
+.border-\[\#E8A33D\]\/60 { border-color: rgba(232,163,61,0.6); }
+.border-\[\#EEF2F1\] { border-color: #EEF2F1; }
+.border-b { border-bottom-width: 1px; border-bottom-style: solid; }
+.border-dashed { border-style: dashed; }
+.border-none { border-style: none; }
+.border-t { border-top-width: 1px; border-top-style: solid; }
+.bottom-0 { bottom: 0.0rem; }
+.bottom-24 { bottom: 6.0rem; }
+.disabled\:opacity-50:disabled { opacity: 0.5; }
+.fixed { position: fixed; }
+.flex { display: flex; }
+.flex-1 { flex: 1 1 0%; }
+.flex-col { flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
+.focus\:outline-none:focus { outline: none; }
+.font-500 { font-weight: 500; }
+.font-600 { font-weight: 600; }
+.font-700 { font-weight: 700; }
+.font-medium { font-weight: 500; }
+.gap-1 { gap: 0.25rem; }
+.gap-1\.5 { gap: 0.375rem; }
+.gap-2 { gap: 0.5rem; }
+.py-8 { padding-top: 2.0rem; padding-bottom: 2.0rem; }
+.relative { position: relative; }
+.right-0 { right: 0.0rem; }
+.rounded-2xl { border-radius: 1rem; }
+.rounded-full { border-radius: 9999px; }
+.rounded-lg { border-radius: 0.5rem; }
+.rounded-xl { border-radius: 0.75rem; }
+.shadow-\[0_-2px_10px_rgba\(0\,0\,0\,0\.05\)\] { box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+.shadow-inner { box-shadow: inset 0 2px 4px 0 rgba(0,0,0,0.05); }
+.shadow-lg { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1); }
+.shadow-md { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1); }
+.shadow-sm { box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); }
+.shadow-xl { box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); }
+.shrink-0 { flex-shrink: 0; }
+@media (min-width: 640px) { .sm\:w-auto { width: auto; } }
+.space-y-1 > * + * { margin-top: 0.25rem; }
+.sticky { position: sticky; }
+.text-\[\#0F5C6B\] { color: #0F5C6B; }
+.text-\[\#14232B\] { color: #14232B; }
+.text-\[\#2E8B57\] { color: #2E8B57; }
+.text-\[\#5B7070\] { color: #5B7070; }
+.text-\[\#8FA3A3\] { color: #8FA3A3; }
+.text-\[\#C0392B\] { color: #C0392B; }
+.text-\[\#E8A33D\] { color: #E8A33D; }
+.text-\[\#FCE8B8\] { color: #FCE8B8; }
+.text-\[10px\] { font-size: 10px; }
+.text-\[11px\] { font-size: 11px; }
+.text-\[12px\] { font-size: 12px; }
+.text-\[13px\] { font-size: 13px; }
+.text-\[14px\] { font-size: 14px; }
+.text-\[15px\] { font-size: 15px; }
+.text-\[17px\] { font-size: 17px; }
+.text-\[26px\] { font-size: 26px; }
+.text-center { text-align: center; }
+.text-sm { font-size: 0.875rem; }
+.text-white { color: #fff; }
+.top-0 { top: 0.0rem; }
+.top-1\/2 { top: 50%; }
+.tracking-wide { letter-spacing: 0.025em; }
+.transition-colors { transition-property: color, background-color, border-color; transition-duration: 150ms; }
+.transition-opacity { transition-property: opacity; transition-duration: 150ms; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.underline { text-decoration: underline; }
+.uppercase { text-transform: uppercase; }
+.w-11 { width: 2.75rem; }
+.w-12 { width: 3.0rem; }
+.w-24 { width: 6.0rem; }
+.w-full { width: 100%; }
+.z-10 { z-index: 10; }
+.z-40 { z-index: 40; }
+.z-50 { z-index: 50; }
+.z-\[60\] { z-index: 60; }
+@keyframes sde-spin { to { transform: rotate(360deg); } }
+
+* { box-sizing: border-box; }
+body { font-family: Manrope, sans-serif; }
+
+  html, body { margin: 0; background: #F5F8F7; }
+  #boot-error { display: none; font-family: sans-serif; padding: 24px; color: #C0392B; white-space: pre-wrap; font-size: 13px; line-height: 1.6; }
+  #boot-error h2 { color: #14232B; margin-top: 0; }
+  #boot-error code { background: #F0F6F5; color: #14232B; padding: 8px; display: block; border-radius: 8px; font-size: 12px; overflow-x: auto; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<button
+  id="sde-install-btn"
+  type="button"
+  style="display:none;position:fixed;right:16px;bottom:16px;z-index:9999;align-items:center;gap:8px;padding:12px 18px;border-radius:999px;border:none;background:#0F5C6B;color:#fff;font-family:inherit;font-size:14px;font-weight:600;box-shadow:0 6px 16px rgba(15,92,107,0.35);cursor:pointer;"
+>
+  ⬇️ Installer l'application
+</button>
+<div id="boot-error"></div>
+<script>
+  function statusDump() {
+    var s = window.__loadStatus || {};
+    return Object.keys(s).map(function (k) { return "- " + k + " : " + s[k]; }).join("\n");
+  }
+  function showBootError(title, detail) {
+    var box = document.getElementById("boot-error");
+    if (!box) return;
+    box.style.display = "block";
+    box.innerHTML = "<h2>" + title + "</h2>" +
+      "<p>Etat des ressources chargees :</p><code>" + statusDump() + "</code>" +
+      "<p style='margin-top:12px'><b>Detail technique :</b></p><code>" + (detail || "aucun detail disponible") + "</code>" +
+      "<p style='margin-top:12px'>Copie ce detail et envoie-le pour un diagnostic precis.</p>";
+  }
+  window.addEventListener("error", function (e) {
+    var detail = "";
+    if (e.error && e.error.stack) detail = e.error.stack;
+    else if (e.message) detail = e.message + (e.filename ? " (" + e.filename + ":" + e.lineno + ":" + e.colno + ")" : "");
+    else if (e.target && (e.target.src || e.target.href)) detail = "Echec de chargement de : " + (e.target.src || e.target.href);
+    var rootEl = document.getElementById("root");
+    var appHasRendered = rootEl && rootEl.childElementCount > 0;
+    if (appHasRendered) {
+      // L'appli tourne deja : on n'affiche pas de bandeau alarmant pour une erreur mineure,
+      // on la garde juste consultable dans la console.
+      console.warn("Erreur non bloquante (l'appli fonctionne) :", detail || e);
+      return;
+    }
+    showBootError("Erreur de chargement", detail);
+  }, true);
+  window.addEventListener("unhandledrejection", function (e) {
+    var rootEl = document.getElementById("root");
+    if (rootEl && rootEl.childElementCount > 0) {
+      console.warn("Promesse rejetee (non bloquante) :", e.reason);
+      return;
+    }
+    showBootError("Erreur (promesse rejetee)", e.reason && e.reason.stack ? e.reason.stack : String(e.reason));
+  });
+  setTimeout(function () {
+    if (!document.getElementById("root").hasChildNodes()) {
+      showBootError("L'application ne s'est pas affichee apres 8 secondes", "Aucune erreur JavaScript detectee -- voir l'etat des ressources ci-dessus pour reperer ce qui n'a pas charge.");
+    }
+  }, 8000);
+</script>
+<script type="text/babel" data-presets="react">
+
+const { useState, useEffect, useMemo, useCallback, useRef } = React;
+
+// ---------- Icônes (SVG légers, remplacent lucide-react pour un fonctionnement 100% autonome) ----------
+function svgIcon(children) {
+  return function IconCmp({ size = 20, color = "currentColor", strokeWidth = 2, className = "", fill = "none" }) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth={strokeWidth}
+        strokeLinecap="round" strokeLinejoin="round" className={className}>
+        {children}
+      </svg>
+    );
+  };
+}
+const LayoutDashboard = svgIcon(<><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></>);
+const Users = svgIcon(<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>);
+const Droplet = svgIcon(<path d="M12 2.7s6 6.6 6 11.1a6 6 0 1 1-12 0c0-4.5 6-11.1 6-11.1Z"/>);
+const History = svgIcon(<><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 5v5h5"/><path d="M12 7v5l3 3"/></>);
+const Wallet = svgIcon(<><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></>);
+const Printer = svgIcon(<><rect x="6" y="9" width="12" height="7" rx="1"/><path d="M6 9V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v5"/><path d="M6 18h12v3a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-3Z"/></>);
+const Plus = svgIcon(<><path d="M12 5v14"/><path d="M5 12h14"/></>);
+const Trash2 = svgIcon(<><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></>);
+const Search = svgIcon(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>);
+const X = svgIcon(<><path d="M18 6 6 18"/><path d="M6 6l12 12"/></>);
+const Pencil = svgIcon(<><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></>);
+const Save = svgIcon(<><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></>);
+const Loader2 = svgIcon(<path d="M21 12a9 9 0 1 1-6.219-8.56"/>);
+const Download = svgIcon(<><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></>);
+const Share2 = svgIcon(<><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5 15.4 17.5"/><path d="M15.4 6.5 8.6 10.5"/></>);
+const Lock = svgIcon(<><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>);
+const LogOut = svgIcon(<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></>);
+const Settings = svgIcon(<><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></>);
+const Upload = svgIcon(<><path d="M12 21V9"/><path d="m7 14 5-5 5 5"/><path d="M5 21h14"/></>);
+const Eye = svgIcon(<><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></>);
+const EyeOff = svgIcon(<><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a19.7 19.7 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a19.6 19.6 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/></>);
+
+
+const MOIS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+const currentPeriode = () => new Date().toISOString().slice(0, 7);
+const periodeLabel = (p) => {
+  if (!p) return "";
+  const [y, m] = p.split("-");
+  return `${MOIS_FR[parseInt(m, 10) - 1]} ${y}`;
+};
+const fmt = (n) => (Number(n) || 0).toLocaleString("fr-FR") + " FCFA";
+const fmtDate = (iso) => {
+  if (!iso) return "—";
+  const [y, m, d] = String(iso).split("-");
+  if (!y || !m || !d) return iso;
+  return `${d}/${m}/${y}`;
+};
+const SEUIL_SUSPENSION = 5001; // dette (FCFA) à partir de laquelle un abonné est proposé à la suspension
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const releveId = (abonneId, periode) => `${abonneId}__${periode}`;
+// Normalise un nom pour comparaison (espaces, majuscules, accents) — sert à repérer les doublons type "AIMÉ" / "Aimé "
+const normalizeName = (s) =>
+  (s || "")
+    .trim()
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+const todayISO = () => new Date().toISOString().slice(0, 10);
+const prevPeriode = (p) => {
+  const [y, m] = p.split("-").map(Number);
+  const d = new Date(y, m - 2, 1); // m is 1-indexed; m-2 gives previous month (0-indexed target)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const ROLES = [
+  { id: "administrateur", label: "Administrateur" },
+  { id: "secretaire", label: "Secrétaire" },
+  { id: "associe", label: "Associé (consultation)" },
+];
+
+// ---------- Firebase (authentification + base de données partagée) ----------
+const firebaseConfig = {
+  apiKey: "AIzaSyC-jrkO8WlsBpBgp0YHs5acPJ1YvfwoPvI",
+  authDomain: "gic-aept.firebaseapp.com",
+  projectId: "gic-aept",
+  storageBucket: "gic-aept.firebasestorage.app",
+  messagingSenderId: "753378492164",
+  appId: "1:753378492164:web:8259f16658556b69955a51",
+};
+
+// Association identifiant technique (email Firebase) <-> rôle applicatif.
+// Ce sont les 3 comptes créés dans la console Firebase (Authentication > Utilisateurs).
+const ROLE_TO_EMAIL = {
+  administrateur: "admin.aept@app.com",
+  secretaire: "secret.aept@app.com",
+  associe: "asso.aept@app.com",
+};
+const EMAIL_TO_ROLE = Object.fromEntries(Object.entries(ROLE_TO_EMAIL).map(([role, email]) => [email, role]));
+
+let firebaseApp = null;
+let auth = null;
+let db = null;
+let firebaseInitError = "";
+try {
+  firebaseApp = firebase.initializeApp(firebaseConfig);
+  auth = firebase.auth();
+  db = firebase.firestore();
+  try {
+    db.enablePersistence({ synchronizeTabs: true }).catch(() => {
+      // La persistance hors-ligne peut échouer si plusieurs onglets sont ouverts
+      // ou si le navigateur ne la supporte pas : l'app reste utilisable en ligne.
+    });
+  } catch (e) {
+    // enablePersistence indisponible sur ce navigateur : pas bloquant.
+  }
+} catch (e) {
+  firebaseInitError = (e && e.message) || String(e);
+}
+// ── MULTI-TENANT : chemin Firestore dynamique par SDE ──
+// gicId "gic-aept" → app_data/main (rétro-compatibilité, zéro migration)
+// gicId autre       → gics/{gicId}/data/main (nouvelle SDE)
+function getDocRef(db, gicId) {
+  if (!db) return null;
+  if (!gicId || gicId === "gic-aept") {
+    return db.collection("app_data").doc("main");
+  }
+  return db.collection("gics").doc(gicId).collection("data").doc("main");
+}
+
+const DEFAULT_DATA = {
+  abonnes: [],
+  releves: [],
+  paiements: [],
+  depenses: {}, // ancien système (par période, conservé pour l'historique, non affiché)
+  depensesLignes: [], // nouveau système : liste plate et cumulative des dépenses, comme "paiements"
+  recettesDiverses: [], // argent encaissé hors facture d'eau (
