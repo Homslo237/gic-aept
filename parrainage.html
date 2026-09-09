@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Devenez parrain — Homs-Water Manager</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+    background: #F4F7F8; color: #1a1a1a; min-height: 100vh;
+  }
+  #root { min-height: 100vh; }
+</style>
+</head>
+<body>
+
+<div id="root">Chargement...</div>
+
+<!-- React + Babel (mêmes versions que l'app principale) -->
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<!-- Firebase (même projet que l'app principale) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<!-- Le code du programme de parrainage, partagé avec l'app principale -->
+<script src="affiliation.js"></script>
+<script type="text/babel" data-presets="react" src="affiliation-widget.js"></script>
+
+<script type="text/babel" data-presets="react">
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC-jrkO8WlsBpBgp0YHs5acPJ1YvfwoPvI",
+  authDomain: "gic-aept.firebaseapp.com",
+  projectId: "gic-aept",
+  storageBucket: "gic-aept.firebasestorage.app",
+  messagingSenderId: "753378492164",
+  appId: "1:753378492164:web:8259f16658556b69955a51",
+};
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const { useState, useEffect } = React;
+
+const inputStyle = {
+  width: "100%", padding: "12px 14px", borderRadius: 12,
+  border: "1px solid #ddd", fontSize: 14, marginBottom: 14,
+};
+const labelStyle = { fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 6, display: "block" };
+const btnStyle = {
+  width: "100%", padding: "13px", borderRadius: 14, border: "none",
+  background: "#0F5C6B", color: "white", fontWeight: 700, fontSize: 14, cursor: "pointer",
+};
+
+function Header() {
+  return (
+    <div style={{ textAlign: "center", padding: "36px 20px 20px" }}>
+      <div style={{
+        width: 56, height: 56, borderRadius: 16, background: "#0F5C6B",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        margin: "0 auto 14px", fontSize: 28,
+      }}>💧</div>
+      <h1 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 4px", color: "#0F5C6B" }}>Programme de parrainage</h1>
+      <p style={{ fontSize: 13, color: "#777", margin: 0 }}>Homs-Water Manager</p>
+    </div>
+  );
+}
+
+function Connexion({ onConnecte, allerInscription }) {
+  const [whatsapp, setWhatsapp] = useState("");
+  const [pin, setPin] = useState("");
+  const [erreur, setErreur] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setErreur(""); setLoading(true);
+    try {
+      const affilie = await window.Affiliation.connecterAffilie(db, { whatsapp, pin });
+      if (!affilie) { setErreur("Numéro ou code PIN incorrect."); setLoading(false); return; }
+      localStorage.setItem("affiliateSession", JSON.stringify(affilie));
+      onConnecte(affilie);
+    } catch (err) {
+      setErreur("Erreur : " + err.message);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ padding: "0 20px", maxWidth: 400, margin: "0 auto" }}>
+      <form onSubmit={submit} style={{ background: "white", padding: 24, borderRadius: 20 }}>
+        <label style={labelStyle}>Numéro WhatsApp</label>
+        <input style={inputStyle} type="tel" placeholder="6XX XXX XXX" value={whatsapp}
+          onChange={e => setWhatsapp(e.target.value)} required />
+        <label style={labelStyle}>Code PIN (4 chiffres)</label>
+        <input style={inputStyle} type="password" inputMode="numeric" maxLength={4} placeholder="••••" value={pin}
+          onChange={e => setPin(e.target.value.replace(/\D/g, ""))} required />
+        {erreur && <p style={{ color: "#C0392B", fontSize: 13, marginTop: -6, marginBottom: 12 }}>{erreur}</p>}
+        <button style={btnStyle} disabled={loading}>{loading ? "Connexion..." : "Se connecter"}</button>
+      </form>
+      <p style={{ textAlign: "center", fontSize: 13, color: "#777", marginTop: 18 }}>
+        Pas encore parrain ?{" "}
+        <a href="#" onClick={(e) => { e.preventDefault(); allerInscription(); }} style={{ color: "#0F5C6B", fontWeight: 700 }}>
+          Inscrivez-vous
+        </a>
+      </p>
+    </div>
+  );
+}
+
+function Inscription({ onInscrit, allerConnexion }) {
+  const [nom, setNom] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [pin, setPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [erreur, setErreur] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setErreur("");
+    if (pin.length !== 4) { setErreur("Le code PIN doit faire 4 chiffres."); return; }
+    if (pin !== confirmPin) { setErreur("Les deux codes PIN ne correspondent pas."); return; }
+    setLoading(true);
+    try {
+      const affilie = await window.Affiliation.inscrireAffilie(db, { nom, whatsapp, pin });
+      localStorage.setItem("affiliateSession", JSON.stringify(affilie));
+      onInscrit(affilie);
+    } catch (err) {
+      setErreur(err.message);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ padding: "0 20px", maxWidth: 400, margin: "0 auto" }}>
+      <form onSubmit={submit} style={{ background: "white", padding: 24, borderRadius: 20 }}>
+        <label style={labelStyle}>Votre nom complet</label>
+        <input style={inputStyle} type="text" placeholder="Ex: Jean Mballa" value={nom}
+          onChange={e => setNom(e.target.value)} required />
+        <label style={labelStyle}>Numéro WhatsApp</label>
+        <input style={inputStyle} type="tel" placeholder="6XX XXX XXX" value={whatsapp}
+          onChange={e => setWhatsapp(e.target.value)} required />
+        <label style={labelStyle}>Choisissez un code PIN (4 chiffres)</label>
+        <input style={inputStyle} type="password" inputMode="numeric" maxLength={4} placeholder="••••" value={pin}
+          onChange={e => setPin(e.target.value.replace(/\D/g, ""))} required />
+        <label style={labelStyle}>Confirmez le code PIN</label>
+        <input style={inputStyle} type="password" inputMode="numeric" maxLength={4} placeholder="••••" value={confirmPin}
+          onChange={e => setConfirmPin(e.target.value.replace(/\D/g, ""))} required />
+        {erreur && <p style={{ color: "#C0392B", fontSize: 13, marginTop: -6, marginBottom: 12 }}>{erreur}</p>}
+        <button style={btnStyle} disabled={loading}>{loading ? "Inscription..." : "Devenir parrain"}</button>
+        <p style={{ fontSize: 11, color: "#999", marginTop: 12, lineHeight: 1.5 }}>
+          En vous inscrivant, vous recevrez un code de parrainage unique à partager.
+          Vous gagnez 20% de l'abonnement de chaque SDE que vous recommandez, chaque mois, pendant 12 mois.
+        </p>
+      </form>
+      <p style={{ textAlign: "center", fontSize: 13, color: "#777", marginTop: 18 }}>
+        Déjà parrain ?{" "}
+        <a href="#" onClick={(e) => { e.preventDefault(); allerConnexion(); }} style={{ color: "#0F5C6B", fontWeight: 700 }}>
+          Connectez-vous
+        </a>
+      </p>
+    </div>
+  );
+}
+
+function App() {
+  const [affilie, setAffilie] = useState(null);
+  const [vue, setVue] = useState("connexion"); // connexion | inscription
+  const [pret, setPret] = useState(false);
+
+  useEffect(() => {
+    const session = localStorage.getItem("affiliateSession");
+    if (session) { try { setAffilie(JSON.parse(session)); } catch (e) {} }
+    setPret(true);
+  }, []);
+
+  const deconnexion = () => {
+    localStorage.removeItem("affiliateSession");
+    setAffilie(null);
+  };
+
+  if (!pret) return null;
+
+  if (affilie) {
+    return (
+      <div>
+        <Header />
+        <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 4px" }}>
+          <window.Affiliation.MesFilleuls db={db} affiliateId={affilie.id} myReferralCode={affilie.referralCode} />
+          <div style={{ textAlign: "center", paddingBottom: 30 }}>
+            <a href="#" onClick={(e) => { e.preventDefault(); deconnexion(); }} style={{ fontSize: 13, color: "#999" }}>
+              Se déconnecter
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <Header />
+      {vue === "connexion"
+        ? <Connexion onConnecte={setAffilie} allerInscription={() => setVue("inscription")} />
+        : <Inscription onInscrit={setAffilie} allerConnexion={() => setVue("connexion")} />
+      }
+      <div style={{ textAlign: "center", padding: "30px 20px" }}>
+        <a href="https://homslo237.github.io/gic-aept/landing18.html" style={{ fontSize: 12, color: "#aaa" }}>
+          ← Retour au site Homs-Water Manager
+        </a>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+
+</script>
+</body>
+</html>
