@@ -1,7 +1,7 @@
 {
-  "name": "GIC AEPT — Gestion de l'eau",
-  "short_name": "GIC AEPT",
-  "description": "Application de gestion des abonnés, relevés et paiements du réseau d'eau du GIC AEPT.",
+  "name": "Homs-Water Manager",
+  "short_name": "Homs-Water",
+  "description": "Application de gestion des abonnés, relevés et paiements pour les Services de Distribution d'Eau (SDEs) en Afrique.",
   "id": "/",
   "start_url": "./index.html",
   "scope": "./",
