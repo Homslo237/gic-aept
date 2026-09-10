@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Guide d'utilisation — Homs-Water Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --deep: #0B4F5E; --cyan: #00C2CB; --sand: #F5EDD6;
+    --ink: #0A1A1F; --orange: #E8722A; --gray: #5B7A80; --white: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: 'Inter', sans-serif; color: var(--ink);
+    background: var(--white); line-height: 1.6;
+  }
+  .hero {
+    background: linear-gradient(160deg, #0B4F5E 0%, #073B47 60%, #041F26 100%);
+    color: white; padding: 48px 20px 40px; text-align: center;
+  }
+  .hero h1 { font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 800; margin: 0 0 8px; }
+  .hero p { color: rgba(255,255,255,0.75); font-size: 14px; margin: 0; }
+  .container { max-width: 640px; margin: 0 auto; padding: 0 20px; }
+  .toc {
+    background: var(--sand); border-radius: 16px; padding: 20px; margin: -20px 0 32px;
+  }
+  .toc-title { font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--deep); margin-bottom: 10px; }
+  .toc a { display: block; color: var(--ink); text-decoration: none; font-size: 14px; padding: 6px 0; border-bottom: 1px solid rgba(11,79,94,0.1); }
+  .toc a:last-child { border-bottom: none; }
+  .section-label {
+    display: inline-block; font-size: 11px; font-weight: 700; color: var(--cyan);
+    letter-spacing: 0.1em; text-transform: uppercase; margin: 32px 0 8px;
+    background: rgba(0,194,203,0.1); padding: 4px 12px; border-radius: 12px;
+  }
+  h2 { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; margin: 4px 0 16px; color: var(--deep); }
+  h3 { font-size: 16px; font-weight: 700; margin: 24px 0 8px; color: var(--ink); }
+  p { font-size: 14.5px; color: #333; margin: 0 0 12px; }
+  ol, ul { padding-left: 20px; font-size: 14.5px; color: #333; }
+  li { margin-bottom: 8px; }
+  .step {
+    display: flex; gap: 14px; align-items: flex-start; margin-bottom: 18px;
+    background: #FAFAF8; border: 1px solid #EEE; border-radius: 14px; padding: 14px 16px;
+  }
+  .step-num {
+    flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--orange); color: white; font-weight: 800; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-text { font-size: 14px; color: #333; }
+  .step-text strong { color: var(--ink); }
+  .video-slot {
+    background: var(--ink); color: rgba(255,255,255,0.5); border-radius: 14px;
+    padding: 24px; text-align: center; font-size: 13px; margin: 16px 0;
+    border: 2px dashed rgba(255,255,255,0.2);
+  }
+  .note {
+    background: rgba(232,114,42,0.08); border-left: 3px solid var(--orange);
+    padding: 12px 16px; border-radius: 8px; font-size: 13.5px; margin: 16px 0; color: #5A3A20;
+  }
+  .divider { height: 1px; background: #EEE; margin: 40px 0; }
+  .btn-top {
+    display: inline-block; margin: 20px 0; font-size: 12px; color: var(--gray);
+    text-decoration: none; border: 1px solid #DDD; padding: 6px 14px; border-radius: 20px;
+  }
+  footer { text-align: center; padding: 40px 20px; color: var(--gray); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>💧 Guide d'utilisation</h1>
+  <p>Homs-Water Manager — tout ce qu'il faut savoir pour bien démarrer</p>
+</div>
+
+<div class="container">
+  <div class="toc">
+    <div class="toc-title">Sommaire</div>
+    <a href="#demarrage">🚀 Démarrage rapide (5 minutes)</a>
+    <a href="#guide-complet">📖 Guide complet</a>
+    <a href="#bilan">1. Le tableau de bord (Bilan)</a>
+    <a href="#abonnes">2. Gérer vos abonnés</a>
+    <a href="#releve">3. Faire les relevés</a>
+    <a href="#paiements">4. Enregistrer les paiements</a>
+    <a href="#depenses">5. Suivre vos dépenses</a>
+    <a href="#rapports">6. Rapports et documents PDF</a>
+    <a href="#reglages">7. Réglages (logo, tarifs, équipe)</a>
+    <a href="#parrainage">8. Programme de parrainage</a>
+    <a href="#aide">9. Besoin d'aide ?</a>
+  </div>
+
+  <!-- ================= DÉMARRAGE RAPIDE ================= -->
+  <div class="section-label" id="demarrage">Démarrage rapide</div>
+  <h2>Les 5 premières minutes</h2>
+  <p>Suivez ces étapes dans l'ordre pour être opérationnel tout de suite.</p>
+
+  <div class="video-slot">🎥 Emplacement pour la vidéo "Démarrage rapide"<br/><span style="font-size:11px">(à insérer ici une fois la vidéo tournée)</span></div>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-text"><strong>Créez votre espace gratuit.</strong> Depuis la page d'accueil, appuyez sur "Créer mon espace SDE gratuit". Renseignez le nom de votre structure, votre email et un mot de passe.</div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-text"><strong>Configurez votre profil.</strong> Allez dans l'onglet "Réglages" : ajoutez le logo de votre structure et vérifiez le prix au m³ appliqué à vos abonnés.</div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-text"><strong>Ajoutez vos abonnés.</strong> Dans l'onglet "Abonnés", ajoutez-les un par un, ou importez-les tous d'un coup depuis un fichier Excel si vous en avez déjà un.</div>
+  </div>
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-text"><strong>Faites votre premier relevé.</strong> Dans l'onglet "Relevé", choisissez un abonné, entrez le nouvel index du compteur. Activez le mode "⚡ Rapide" si vous devez relever plusieurs compteurs à la suite.</div>
+  </div>
+  <div class="step">
+    <div class="step-num">5</div>
+    <div class="step-text"><strong>Consultez votre bilan.</strong> Retournez sur l'onglet "Bilan" : vous y voyez immédiatement votre taux de recouvrement et un résumé du mois.</div>
+  </div>
+
+  <div class="note">💡 Vous voulez juste tester sans créer de compte ? Utilisez "Essayer la démonstration gratuite" depuis la page d'accueil — toutes les données affichées sont fictives et se réinitialisent.</div>
+
+  <a href="#top" class="btn-top">↑ Retour au sommaire</a>
+
+  <div class="divider"></div>
+
+  <!-- ================= GUIDE COMPLET ================= -->
+  <div class="section-label" id="guide-complet">Guide complet</div>
+  <h2>Toutes les fonctionnalités, en détail</h2>
+
+  <h3 id="bilan">1. Le tableau de bord (Bilan)</h3>
+  <p>C'est l'écran d'accueil de votre espace. Il affiche :</p>
+  <ul>
+    <li>Une jauge visuelle de votre <strong>taux de recouvrement</strong> (part de ce qui a été facturé et effectivement encaissé)</li>
+    <li>Un résumé du mois en cours : montant facturé, encaissé, impayés</li>
+    <li>L'accès rapide à l'historique de vos actions récentes</li>
+  </ul>
+  <div class="video-slot">🎥 Vidéo : "Comprendre son tableau de bord"</div>
+
+  <h3 id="abonnes">2. Gérer vos abonnés</h3>
+  <p>Chaque personne raccordée à votre réseau d'eau est un "abonné". Depuis cet onglet, vous pouvez :</p>
+  <ul>
+    <li>Ajouter un abonné manuellement (nom, zone, référence de compteur)</li>
+    <li><strong>Importer une liste complète</strong> depuis un fichier Excel si vous en avez déjà un — pratique pour démarrer rapidement sans tout ressaisir</li>
+    <li>Rechercher un abonné par nom, référence ou zone</li>
+  </ul>
+
+  <h3 id="releve">3. Faire les relevés</h3>
+  <p>C'est ici que vous enregistrez, chaque mois, le nouvel index du compteur de chaque abonné. L'application calcule automatiquement la consommation et le montant à facturer.</p>
+  <p><strong>Le mode "⚡ Rapide" :</strong> une fois activé, dès que vous enregistrez le relevé d'un abonné, l'application passe automatiquement au suivant qui n'a pas encore été relevé ce mois-ci — pratique si vous relevez plusieurs compteurs d'affilée sur le terrain.</p>
+  <div class="video-slot">🎥 Vidéo : "Faire un relevé, avec et sans le mode rapide"</div>
+
+  <h3 id="paiements">4. Enregistrer les paiements</h3>
+  <p>Quand un abonné vous paie sa facture d'eau (en espèces, Orange Money, MTN MoMo...), enregistrez-le dans cet onglet. Le montant est automatiquement retiré de ses impayés.</p>
+
+  <h3 id="depenses">5. Suivre vos dépenses</h3>
+  <p>Enregistrez les dépenses et mouvements financiers de votre structure : matériel acheté, salaires, main d'œuvre, vente de matériel, revenus annexes. Cela vous permet de voir, en plus des recettes, ce que votre structure dépense réellement chaque mois.</p>
+
+  <h3 id="rapports">6. Rapports et documents PDF</h3>
+  <p>Homs-Water Manager génère automatiquement plusieurs documents professionnels, prêts à imprimer ou partager :</p>
+  <ul>
+    <li><strong>Factures individuelles</strong> pour chaque abonné</li>
+    <li><strong>Rapport d'analyse sur 6 mois</strong> — pour suivre l'évolution de votre activité</li>
+    <li><strong>Analyse par zone</strong> — pour comparer les performances de vos différents secteurs</li>
+    <li><strong>Liste des clients insolvables</strong> et <strong>liste des clients à suspendre</strong> — pour prioriser vos relances</li>
+    <li><strong>Relance WhatsApp</strong> — un message pré-rempli pour rappeler à un abonné son impayé</li>
+  </ul>
+  <p>Tous les documents portent le logo de votre structure (une fois ajouté dans Réglages) et le tampon "Homslo/Vision" en pied de page.</p>
+
+  <h3 id="reglages">7. Réglages</h3>
+  <p>C'est le centre de contrôle de votre structure :</p>
+  <ul>
+    <li>Nom et <strong>logo</strong> de votre structure (affiché dans l'app et sur tous vos documents imprimés)</li>
+    <li>Prix au m³ et frais d'entretien appliqués</li>
+    <li>Gestion des membres de votre équipe et de leurs rôles (administrateur, secrétaire, associé)</li>
+  </ul>
+  <div class="note">📌 Le logo que vous uploadez ici remplace, pour vous seul, le logo par défaut de Homs-Water Manager — sur votre écran et sur tous vos documents PDF.</div>
+
+  <h3 id="parrainage">8. Programme de parrainage</h3>
+  <p>Vous connaissez un autre SDE qui gère encore son eau sur papier ? Recommandez-lui Homs-Water Manager et touchez 20% de son abonnement, chaque mois, pendant 12 mois.</p>
+  <p>Le programme de parrainage est ouvert à tout le monde, pas seulement aux SDEs déjà inscrites — rendez-vous sur la page "Devenir parrain" depuis le site pour vous inscrire avec votre nom et votre numéro WhatsApp.</p>
+
+  <h3 id="aide">9. Besoin d'aide ?</h3>
+  <p>Une question, un problème, une suggestion ? Contactez l'équipe Homslo/Vision :</p>
+  <ul>
+    <li>📱 WhatsApp : <strong>+237 679 437 377</strong></li>
+    <li>✉️ Email : <strong>homslovision@gmail.com</strong></li>
+  </ul>
+
+  <a href="#top" class="btn-top">↑ Retour au sommaire</a>
+</div>
+
+<footer>Homs-Water Manager — Homslo/Vision · "Le futur maintenant" · © 2026</footer>
+
+</body>
+</html>
