@@ -24,13 +24,43 @@
   const COMMISSION_RATE = 0.20;      // 20%
   const COMMISSION_MONTHS_MAX = 12;  // pendant 12 mois
 
-  // Prix des plans en FCFA — DOIT rester identique à la grille officielle.
-  const PLAN_PRICES = {
-    starter: 0,
-    essentiel: 5000,
-    pro: 10000,
-    premium: 15000,
+  // Valeurs de secours — utilisées seulement si la configuration Firebase (config/plans)
+  // n'existe pas encore ou est incomplète. Ne devrait jamais arriver en usage normal.
+  const PLAN_DEFAULTS = {
+    starter:   { label: "Starter",   prix: 0,     limite: 10 },
+    essentiel: { label: "Essentiel", prix: 5000,  limite: 50 },
+    pro:       { label: "Pro",       prix: 10000, limite: 300 },
+    premium:   { label: "Premium",   prix: 15000, limite: null }, // null = illimité
   };
+
+  // Ancienne constante conservée pour compatibilité (valeurs de secours uniquement).
+  const PLAN_PRICES = {
+    starter: PLAN_DEFAULTS.starter.prix,
+    essentiel: PLAN_DEFAULTS.essentiel.prix,
+    pro: PLAN_DEFAULTS.pro.prix,
+    premium: PLAN_DEFAULTS.premium.prix,
+  };
+
+  // ---------- Charger la configuration réelle des tarifs depuis Firebase ----------
+  // Fusionne avec PLAN_DEFAULTS pour ne jamais planter si un champ manque.
+  async function chargerConfigPlans(db) {
+    try {
+      const doc = await db.collection("config").doc("plans").get();
+      const data = doc.exists ? doc.data() : {};
+      const config = {};
+      for (const cle of Object.keys(PLAN_DEFAULTS)) {
+        config[cle] = Object.assign({}, PLAN_DEFAULTS[cle], data[cle] || {});
+      }
+      return config;
+    } catch (e) {
+      return PLAN_DEFAULTS;
+    }
+  }
+
+  // ---------- Enregistrer une nouvelle configuration de tarifs (admin uniquement) ----------
+  async function enregistrerConfigPlans(db, config) {
+    await db.collection("config").doc("plans").set(config, { merge: true });
+  }
 
   // ---------- Génération du code de parrainage ----------
   // Ex: "Jean Mballa" -> "JEANMBAL-4F2A"
@@ -138,10 +168,11 @@
   async function listerCommissionsDuMois(db) {
     const mois = moisActuel();
 
-    const [affiliatesSnap, usersSnap, commissionsSnap] = await Promise.all([
+    const [affiliatesSnap, usersSnap, commissionsSnap, planConfig] = await Promise.all([
       db.collection("affiliates").get(),
       db.collection("users").get(),
       db.collection("affiliateCommissions").where("mois", "==", mois).get(),
+      chargerConfigPlans(db),
     ]);
 
     const affiliatesById = {};
@@ -157,7 +188,7 @@
       const affilie = affiliatesById[u.referredByAffiliateId];
       if (!affilie) return; // parrain supprimé entre-temps
 
-      const prixPlan = PLAN_PRICES[u.plan] || 0;
+      const prixPlan = (planConfig[u.plan] && planConfig[u.plan].prix) || 0;
       if (prixPlan <= 0) return; // pas de commission sur un plan gratuit
 
       const montant = Math.round(prixPlan * COMMISSION_RATE);
@@ -185,6 +216,9 @@
     COMMISSION_RATE: COMMISSION_RATE,
     COMMISSION_MONTHS_MAX: COMMISSION_MONTHS_MAX,
     PLAN_PRICES: PLAN_PRICES,
+    PLAN_DEFAULTS: PLAN_DEFAULTS,
+    chargerConfigPlans: chargerConfigPlans,
+    enregistrerConfigPlans: enregistrerConfigPlans,
     genCode: genCode,
     hashPin: hashPin,
     moisEcoules: moisEcoules,

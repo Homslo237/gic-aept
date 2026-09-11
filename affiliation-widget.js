@@ -44,11 +44,13 @@
     }, [db, affiliateId]);
 
     const copierCode = () => {
-      if (navigator.clipboard) navigator.clipboard.writeText(myReferralCode);
+      const lien = `https://homslo237.github.io/gic-aept/?ref=${encodeURIComponent(myReferralCode)}`;
+      if (navigator.clipboard) navigator.clipboard.writeText(lien);
     };
 
     const partagerWhatsApp = () => {
-      const texte = `Connaissez-vous un SDE (service d'eau) qui gère encore tout sur papier ? Recommandez-lui Homs-Water Manager avec mon code ${myReferralCode} : https://homslo237.github.io/gic-aept`;
+      const lien = `https://homslo237.github.io/gic-aept/?ref=${encodeURIComponent(myReferralCode)}`;
+      const texte = `Connaissez-vous un SDE (service d'eau) qui gère encore tout sur papier ? Recommandez-lui Homs-Water Manager, mon lien de parrainage : ${lien}`;
       window.open(`https://wa.me/?text=${encodeURIComponent(texte)}`, "_blank");
     };
 
@@ -64,7 +66,7 @@
             <button onClick={copierCode} style={{
               flex: 1, padding: "10px", borderRadius: 14, border: "1px solid rgba(255,255,255,0.4)",
               background: "rgba(255,255,255,0.12)", color: "white", fontWeight: 600, fontSize: 13,
-            }}>📋 Copier</button>
+            }}>📋 Copier le lien</button>
             <button onClick={partagerWhatsApp} style={{
               flex: 1, padding: "10px", borderRadius: 14, border: "none",
               background: "#25D366", color: "white", fontWeight: 600, fontSize: 13,
