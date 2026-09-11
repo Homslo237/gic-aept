@@ -426,7 +426,7 @@ tbody td { padding: 14px 18px; font-size: 13px; vertical-align: middle; }
     </div>
     <div class="header-right">
       <span class="header-email" id="admin-email"></span>
-      <button class="btn-refresh" onclick="loadData(); loadAffiliations();">↻ Actualiser</button>
+      <button class="btn-refresh" onclick="loadData(); loadAffiliations(); loadPlanConfig();">↻ Actualiser</button>
       <button class="btn-logout" onclick="doLogout()">Déconnexion</button>
     </div>
   </header>
@@ -474,6 +474,20 @@ tbody td { padding: 14px 18px; font-size: 13px; vertical-align: middle; }
           <div class="spinner"></div>
           <div>Chargement des données…</div>
         </div>
+      </div>
+    </div>
+
+    <!-- Tarifs -->
+    <div class="section-label" style="margin-top:32px">Grille tarifaire</div>
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-title">
+          <span class="table-title-dot"></span>
+          Modifier les prix et limites
+        </div>
+      </div>
+      <div id="tarifs-body" style="padding:16px">
+        <div class="loading"><div class="spinner"></div><div>Chargement des tarifs…</div></div>
       </div>
     </div>
 
@@ -532,6 +546,7 @@ auth.onAuthStateChanged(user => {
     document.getElementById("admin-email").textContent    = user.email;
     loadData();
     loadAffiliations();
+    loadPlanConfig();
   } else if (user) {
     auth.signOut();
     showLoginError("Accès refusé. Ce compte n'est pas autorisé.");
@@ -581,9 +596,88 @@ function hideLoginError() {
 
 // ── Chargement données ──
 let sdesData = [];
+let planConfigCache = null; // rempli par loadPlanConfig() ; tant que null, on utilise les valeurs de secours
 
-const planLabel = p => ({ starter:"Gratuit", essentiel:"Essentiel · 5k", pro:"Pro · 10k", premium:"Premium · 15k" }[p]||p);
+const PLAN_FALLBACK = {
+  starter:   { label: "Gratuit",        prix: 0,     limite: 10 },
+  essentiel: { label: "Essentiel · 5k", prix: 5000,  limite: 50 },
+  pro:       { label: "Pro · 10k",      prix: 10000, limite: 300 },
+  premium:   { label: "Premium · 15k",  prix: 15000, limite: null },
+};
+
+const planLabel = p => (planConfigCache?.[p]?.label) || PLAN_FALLBACK[p]?.label || p;
 const badgeCls  = p => ({ pro:"badge-pro", premium:"badge-premium", essentiel:"badge-essentiel" }[p]||"badge-starter");
+
+async function loadPlanConfig() {
+  try {
+    planConfigCache = await window.Affiliation.chargerConfigPlans(db);
+  } catch (e) {
+    planConfigCache = null;
+  }
+  renderTarifs();
+  if (sdesData.length) renderTable(sdesData); // rafraîchit les libellés déjà affichés
+}
+
+function renderTarifs() {
+  const config = planConfigCache || {};
+  const ordre = ["starter", "essentiel", "pro", "premium"];
+
+  document.getElementById("tarifs-body").innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      ${ordre.map(cle => {
+        const p = Object.assign({}, PLAN_FALLBACK[cle], config[cle] || {});
+        const illimite = p.limite === null || p.limite === undefined;
+        return `
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px;border:1px solid var(--border2);border-radius:10px;">
+          <div style="min-width:90px;font-weight:800;color:var(--text);">${cle === "starter" ? "Starter" : cle === "essentiel" ? "Essentiel" : cle === "pro" ? "Pro" : "Premium"}</div>
+          <label style="font-size:11px;color:var(--muted);">Prix (FCFA/mois)
+            <input type="number" min="0" step="500" id="tarif-prix-${cle}" value="${p.prix}"
+              style="display:block;margin-top:4px;width:120px;padding:8px;border-radius:8px;border:1px solid var(--border2);background:rgba(255,255,255,0.04);color:var(--text);"/>
+          </label>
+          <label style="font-size:11px;color:var(--muted);">
+            <span style="display:flex;align-items:center;gap:6px;">
+              <input type="checkbox" id="tarif-illimite-${cle}" ${illimite ? "checked" : ""} onchange="toggleIllimite('${cle}')"/> Illimité
+            </span>
+            <input type="number" min="1" step="1" id="tarif-limite-${cle}" value="${illimite ? "" : p.limite}" ${illimite ? "disabled" : ""}
+              placeholder="Nb abonnés max"
+              style="display:block;margin-top:4px;width:120px;padding:8px;border-radius:8px;border:1px solid var(--border2);background:rgba(255,255,255,0.04);color:var(--text);"/>
+          </label>
+        </div>`;
+      }).join("")}
+      <button class="btn-pay" style="align-self:flex-start;padding:10px 20px;" onclick="enregistrerTarifs()">💾 Enregistrer les tarifs</button>
+    </div>`;
+}
+
+function toggleIllimite(cle) {
+  const cb = document.getElementById(`tarif-illimite-${cle}`);
+  const input = document.getElementById(`tarif-limite-${cle}`);
+  input.disabled = cb.checked;
+  if (cb.checked) input.value = "";
+}
+
+async function enregistrerTarifs() {
+  const ordre = ["starter", "essentiel", "pro", "premium"];
+  const labels = { starter: "Starter", essentiel: "Essentiel", pro: "Pro", premium: "Premium" };
+  const nouvelleConfig = {};
+
+  for (const cle of ordre) {
+    const prix = Number(document.getElementById(`tarif-prix-${cle}`).value) || 0;
+    const illimite = document.getElementById(`tarif-illimite-${cle}`).checked;
+    const limiteVal = document.getElementById(`tarif-limite-${cle}`).value;
+    const limite = illimite ? null : (Number(limiteVal) || 1);
+    nouvelleConfig[cle] = { label: labels[cle], prix, limite };
+  }
+
+  try {
+    await window.Affiliation.enregistrerConfigPlans(db, nouvelleConfig);
+    planConfigCache = nouvelleConfig;
+    renderTarifs();
+    if (sdesData.length) renderTable(sdesData);
+    showToast("Tarifs enregistrés avec succès", "success");
+  } catch (e) {
+    showToast("Erreur : " + (e.message || e), "error");
+  }
+}
 
 async function loadData() {
   setTableLoading();
