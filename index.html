@@ -1446,6 +1446,12 @@ function App() {
       setLoaded(true);
       return;
     }
+    if (isDemo) {
+      // Le mode démonstration ne doit jamais toucher à Firestore (données 100% locales et fictives).
+      setSyncError("");
+      setLoaded(true);
+      return;
+    }
     if (!db) {
       setSyncError("Base de données indisponible sur cet appareil.");
       setLoaded(true);
@@ -1483,7 +1489,7 @@ function App() {
       }
     );
     return () => unsub();
-  }, [role, gicId]);
+  }, [role, gicId, isDemo]);
 
   const persist = useCallback((nextData) => {
     if (isDemo) { setDemoData(nextData); return; }
@@ -2781,11 +2787,14 @@ function Dashboard({ periode, totalFacture, totalEncaisse, totalImpayes, totalDe
 
       {/* Alerte impayés > 30% (B) */}
       {impayesAlert && (
-        <div className="animate-pulse mb-3 bg-[#FDF0EF] border-2 border-[#C0392B] rounded-xl px-3 py-2.5 flex items-center gap-2">
-          <span className="text-[18px]">🚨</span>
+        <div style={{
+          marginBottom: 12, background: "#FDF0EF", border: "2px solid #C0392B",
+          borderRadius: 12, padding: "10px 12px", display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <span style={{ fontSize: 18 }}>🚨</span>
           <div>
-            <p className="text-[12px] font-800 text-[#C0392B]">Impayés élevés ce mois</p>
-            <p className="text-[11px] text-[#C0392B]/80">{fmt(totalImpayes)} non encaissés — plus de 30% du facturé</p>
+            <p style={{ fontSize: 12, fontWeight: 800, color: "#C0392B", margin: 0 }}>Impayés élevés ce mois</p>
+            <p style={{ fontSize: 11, color: "rgba(192,57,43,0.8)", margin: 0 }}>{fmt(totalImpayes)} non encaissés — plus de 30% du facturé</p>
           </div>
         </div>
       )}
@@ -4488,17 +4497,18 @@ root.render(<App />);
     if (btn) btn.style.display = "none";
   });
 
-  window.addEventListener("DOMContentLoaded", () => {
-    const btn = document.getElementById("sde-install-btn");
-    if (!btn) return;
-    btn.addEventListener("click", async () => {
+  // Le bouton existe déjà dans le HTML statique (pas besoin d'attendre DOMContentLoaded,
+  // qui s'est déjà déclenché avant que ce script — transformé par Babel — ne s'exécute).
+  const installBtn = document.getElementById("sde-install-btn");
+  if (installBtn) {
+    installBtn.addEventListener("click", async () => {
       if (!deferredPrompt) return;
       deferredPrompt.prompt();
       await deferredPrompt.userChoice;
       deferredPrompt = null;
-      btn.style.display = "none";
+      installBtn.style.display = "none";
     });
-  });
+  }
 })();
 </script>
 </body>
