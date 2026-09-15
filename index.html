@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>GIC AEPT — Gestion de l'eau</title>
+<title>Homs-Water Manager — Gestion de l'eau</title>
 <meta name="theme-color" content="#0F5C6B" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="GIC AEPT" />
+<meta name="apple-mobile-web-app-title" content="Homs-Water" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
 <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png" />
@@ -1679,7 +1679,7 @@ function App() {
     }
   };
 
-  const gicNom = activeData.gicInfo?.nom || "Homs-Water Distribution";
+  const gicNom = activeData.gicInfo?.nom || "Homs-Water Manager";
   const gicLogo = activeData.gicInfo?.logo || LOGO_DATA_URI;
   const gicAdresse = activeData.gicInfo?.adresse || "PK19 NGOMA ENTREE CHEFFERIE QUARTIER LAPAIX, DOUALA 3e — Tél: 692248128 / 651694772 / 693255612";
   const isDev = role === "administrateur";
@@ -2361,7 +2361,7 @@ function Header({ periode, setPeriode, saving, gicNom, gicLogo, role, onLogout, 
     <header className="sticky top-0 z-40 text-white px-4 pt-4 pb-3">
       <div className="max-w-xl mx-auto flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <img src={gicLogo || LOGO_DATA_URI} alt="Logo GIC AEPT" className="w-11 h-11 rounded-xl object-contain bg-white p-0.5 shrink-0 shadow-md border border-[#E8A33D]/60" />
+          <img src={gicLogo || LOGO_DATA_URI} alt="Logo Homs-Water Manager" className="w-11 h-11 rounded-xl object-contain bg-white p-0.5 shrink-0 shadow-md border border-[#E8A33D]/60" />
           <div className="min-w-0">
             <h1 className="font-display text-[14px] font-700 leading-tight text-white truncate">{gicNom || "GIC ACTION D'ENTRAIDE POUR TOUS"}</h1>
             <p className="text-[11px] text-[#FCE8B8] font-600">Gestion de la distribution d'eau</p>
@@ -3968,7 +3968,7 @@ function BilanPrint({ periode, gicNom, gicLogo, gicAdresse, totalFacture, totalE
   return (
     <div className="pdf-page" style={{ fontFamily: "Manrope, sans-serif", padding: "10mm", color: "#14232B", background: "#fff" }}>
       <div style={{ borderBottom: "3px solid #0F5C6B", paddingBottom: 10, marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
-        <img src={gicLogo || LOGO_DATA_URI} alt="Logo GIC AEPT" style={{ width: 52, height: 52, objectFit: "contain" }} />
+        <img src={gicLogo || LOGO_DATA_URI} alt="Logo Homs-Water Manager" style={{ width: 52, height: 52, objectFit: "contain" }} />
         <div>
           <h1 style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 20, color: "#0F5C6B", margin: 0 }}>{gicNom || "GIC ACTION D'ENTRAIDE POUR TOUS"}</h1>
           <p style={{ fontSize: 11, margin: "4px 0 0" }}>{gicAdresse || "PK19 NGOMA ENTREE CHEFFERIE QUARTIER LAPAIX, DOUALA 3e — Tél: 692248128 / 651694772 / 693255612"}</p>
@@ -4035,7 +4035,7 @@ function FacturePrint({ r, a, gicNom, gicLogo }) {
   const InfoBlock = () => (
     <>
       <div style={{ borderBottom: "3px solid #0F5C6B", paddingBottom: 6, marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
-        <img src={gicLogo || LOGO_DATA_URI} alt="Logo GIC AEPT" style={{ width: 34, height: 34, objectFit: "contain" }} />
+        <img src={gicLogo || LOGO_DATA_URI} alt="Logo Homs-Water Manager" style={{ width: 34, height: 34, objectFit: "contain" }} />
         <div>
           <h1 style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 14, color: "#0F5C6B", margin: 0 }}>{gicNom || "GIC ACTION D'ENTRAIDE POUR TOUS"}</h1>
           <p style={{ fontSize: 8.5, margin: "2px 0 0" }}>PK19 NGOMA ENTREE CHEFFERIE QUARTIER LAPAIX, DOUALA 3e — Tél: 692248128 / 651694772 / 693255612</p>
@@ -4089,7 +4089,7 @@ function FacturePrint({ r, a, gicNom, gicLogo }) {
       {/* SOUCHE DE BUREAU */}
       <div style={{ flex: "0 0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-          <img src={gicLogo || LOGO_DATA_URI} alt="Logo GIC AEPT" style={{ width: 20, height: 20, objectFit: "contain" }} />
+          <img src={gicLogo || LOGO_DATA_URI} alt="Logo Homs-Water Manager" style={{ width: 20, height: 20, objectFit: "contain" }} />
           <p style={{ fontSize: 10, fontWeight: 700, color: "#5B7070", margin: 0 }}>SOUCHE DE BUREAU</p>
         </div>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
@@ -4274,7 +4274,7 @@ function FicheEnTete({ gicNom, gicLogo, gicAdresse, titre, sousTitre }) {
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", gap: 7, borderBottom: "2px solid #0F5C6B", paddingBottom: 4, marginBottom: 5 }}>
-        <img src={gicLogo || LOGO_DATA_URI} alt="Logo GIC AEPT" style={{ width: 26, height: 26, objectFit: "contain" }} />
+        <img src={gicLogo || LOGO_DATA_URI} alt="Logo Homs-Water Manager" style={{ width: 26, height: 26, objectFit: "contain" }} />
         <div>
           <h1 style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 12, color: "#0F5C6B", margin: 0 }}>{gicNom || "GIC ACTION D'ENTRAIDE POUR TOUS"}</h1>
           <p style={{ fontSize: 7, margin: "1px 0 0" }}>{gicAdresse || "PK19 NGOMA ENTREE CHEFFERIE QUARTIER LAPAIX, DOUALA 3e — Tél: 692248128 / 651694772 / 693255612"}</p>
