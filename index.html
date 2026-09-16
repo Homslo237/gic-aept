@@ -1319,6 +1319,7 @@ function App() {
   const [tab, setTab] = useState("dashboard");
   const [periode, setPeriode] = useState(currentPeriode());
   const [printTarget, setPrintTarget] = useState(null);
+  const [showMessageGroupe, setShowMessageGroupe] = useState(false);
   const [toast, setToast] = useState("");
   const [pdfBusy, setPdfBusy] = useState(false);
   const previewRef = useRef(null);
@@ -1326,6 +1327,19 @@ function App() {
   const [plan, setPlan] = useState("starter");
   const [planConfig, setPlanConfig] = useState(null); // null tant que non chargé -> on utilise les valeurs de secours
   const [isDemo, setIsDemo] = useState(false);
+
+  // Lancement automatique du mode démo si l'app est ouverte via un lien "?demo=1"
+  // (utilisé par le bouton "Voir la démo" de la landing page)
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("demo") === "1" && !role && !isDemo) {
+      logAction("Connexion", "Mode démonstration (lien direct)");
+      const d = buildDemoData();
+      setDemoData(d);
+      setIsDemo(true);
+      setRole("administrateur");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [gicId, setGicId] = useState("gic-aept"); // ID unique de la SDE connectée
   const [showRelancer, setShowRelancer] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
@@ -1984,6 +1998,7 @@ function App() {
               onFicheSuivi={() => setPrintTarget({ type: "fiche" })}
               onFicheInsolvables={() => setPrintTarget({ type: "insolvables" })}
               onFicheSuspendre={() => setPrintTarget({ type: "suspendre" })}
+              onMessageGroupe={() => setShowMessageGroupe(true)}
               onAdd={(a, abonnement) => {
                 const limite = limitePlanActuel;
                 if (activeData.abonnes.length >= limite) {
@@ -2207,6 +2222,15 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* ---------- MESSAGE GROUPÉ (WhatsApp) ---------- */}
+      {showMessageGroupe && (
+        <MessageGroupeModal
+          abonnes={activeData.abonnes}
+          zones={zones}
+          onClose={() => setShowMessageGroupe(false)}
+        />
+      )}
 
       {/* ---------- APERÇU / IMPRESSION (visible à l'écran, pas seulement au moment d'imprimer) ---------- */}
       {printTarget && (
@@ -3220,7 +3244,7 @@ function prochainRef(abonnes) {
   return String(max + 1).padStart(3, "0");
 }
 
-function Abonnes({ abonnes, zones, periode, canManage, canAdd, onAdd, onUpdate, onDelete, onImportDonnees, onFicheSuivi, onFicheInsolvables, onFicheSuspendre }) {
+function Abonnes({ abonnes, zones, periode, canManage, canAdd, onAdd, onUpdate, onDelete, onImportDonnees, onFicheSuivi, onFicheInsolvables, onFicheSuspendre, onMessageGroupe }) {
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [q, setQ] = useState("");
@@ -3293,6 +3317,12 @@ function Abonnes({ abonnes, zones, periode, canManage, canAdd, onAdd, onUpdate, 
       {onFicheSuivi && (
         <BigButton icon={Download} color="#E8A33D" onClick={onFicheSuivi}>
           Fiche de suivi des abonnés (PDF)
+        </BigButton>
+      )}
+      <div className="h-2" />
+      {onMessageGroupe && (
+        <BigButton icon={Share2} color="#25D366" onClick={onMessageGroupe}>
+          📢 Message groupé (WhatsApp)
         </BigButton>
       )}
       <div className="h-2" />
@@ -4192,6 +4222,126 @@ function PrintFooterHV() {
     <div style={{borderTop:"1px solid #E2E8E7", marginTop:12, paddingTop:6, display:"flex", alignItems:"center", justifyContent:"space-between"}}>
       <img src={HOMSLO_VISION_LOGO_URI} alt="Homslo/Vision" style={{height:18, objectFit:"contain", opacity:0.7}} />
       <span style={{fontSize:8, color:"#8AACAC"}}>Propulsé par Homslo/Vision · Le futur maintenant · {new Date().toLocaleDateString("fr-FR")}</span>
+    </div>
+  );
+}
+
+// ================= MESSAGE GROUPÉ (WhatsApp) =================
+// Envoi semi-manuel : WhatsApp n'offre aucun envoi automatique gratuit en masse,
+// donc on prépare tout (destinataires + message) et un clic par abonné ouvre WhatsApp pré-rempli.
+function MessageGroupeModal({ abonnes, zones, onClose }) {
+  const [mode, setMode] = useState("tous"); // "tous" | "zone" | "manuel"
+  const [zoneChoisie, setZoneChoisie] = useState(zones[0] || "");
+  const [selection, setSelection] = useState({});
+  const [message, setMessage] = useState("");
+  const [envoyes, setEnvoyes] = useState({});
+
+  const cleanPhone = (tel) => {
+    let digits = (tel || "").replace(/\D/g, "");
+    if (!digits) return "";
+    if (digits.startsWith("237")) return digits;
+    if (digits.length === 9) return "237" + digits;
+    return digits.length >= 8 ? digits : "";
+  };
+
+  const destinataires = useMemo(() => {
+    if (mode === "zone") return abonnes.filter((a) => a.zone === zoneChoisie);
+    if (mode === "manuel") return abonnes.filter((a) => selection[a.refAbonne]);
+    return abonnes;
+  }, [abonnes, mode, zoneChoisie, selection]);
+
+  const avecTelephone = destinataires.filter((a) => cleanPhone(a.telephone));
+  const sansTelephone = destinataires.filter((a) => !cleanPhone(a.telephone));
+
+  const templates = [
+    { label: "💧 Rupture d'eau", texte: "Cher(e) abonné(e), nous vous informons d'un risque de rupture temporaire d'approvisionnement en eau dans votre zone. Merci de vous ravitailler par précaution. Nous vous tiendrons informés du rétablissement du service." },
+    { label: "🔧 Maintenance réseau", texte: "Cher(e) abonné(e), des travaux de maintenance sont prévus sur le réseau de votre zone. Une interruption temporaire du service est possible pendant cette période. Merci de votre compréhension." },
+  ];
+
+  const envoyer = (a) => {
+    const phone = cleanPhone(a.telephone);
+    if (!phone || !message.trim()) return;
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank");
+    setEnvoyes((e) => ({ ...e, [a.refAbonne]: true }));
+  };
+
+  const toggleSelection = (ref) => setSelection((s) => ({ ...s, [ref]: !s[ref] }));
+
+  return (
+    <div className="fixed inset-0 z-50 bg-[#0A1A1F]/80 flex flex-col" onClick={onClose}>
+      <div className="mt-auto bg-[#F0F6F5] rounded-t-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="sticky top-0 bg-[#F0F6F5] pt-4 px-4 pb-2 border-b border-[#E2E8E7] z-10">
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="font-800 text-[16px] text-[#14232B]">📢 Message groupé</h2>
+            <button onClick={onClose} className="text-[#5B7070] text-[20px] font-700">✕</button>
+          </div>
+          <p className="text-[11px] text-[#5B7070]">WhatsApp ne permet pas d'envoi automatique en masse — un clic ouvre WhatsApp pré-rempli pour chaque abonné, à vous de confirmer l'envoi.</p>
+        </div>
+
+        <div className="px-4 py-3 space-y-3">
+          <div>
+            <p className="text-[12px] font-700 text-[#14232B] mb-1.5">Destinataires</p>
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={() => setMode("tous")} className={`text-[12px] font-700 px-3 py-1.5 rounded-full border ${mode === "tous" ? "bg-[#0F5C6B] text-white border-[#0F5C6B]" : "bg-white text-[#0F5C6B] border-[#0F5C6B]/30"}`}>Tous les abonnés</button>
+              <button onClick={() => setMode("zone")} className={`text-[12px] font-700 px-3 py-1.5 rounded-full border ${mode === "zone" ? "bg-[#0F5C6B] text-white border-[#0F5C6B]" : "bg-white text-[#0F5C6B] border-[#0F5C6B]/30"}`}>Par zone</button>
+              <button onClick={() => setMode("manuel")} className={`text-[12px] font-700 px-3 py-1.5 rounded-full border ${mode === "manuel" ? "bg-[#0F5C6B] text-white border-[#0F5C6B]" : "bg-white text-[#0F5C6B] border-[#0F5C6B]/30"}`}>Sélection manuelle</button>
+            </div>
+            {mode === "zone" && (
+              <select value={zoneChoisie} onChange={(e) => setZoneChoisie(e.target.value)} className="mt-2 w-full border border-[#E2E8E7] rounded-lg px-2 py-2 text-[13px]">
+                {zones.map((z) => <option key={z} value={z}>{z}</option>)}
+              </select>
+            )}
+          </div>
+
+          {mode === "manuel" && (
+            <div>
+              <p className="text-[12px] font-700 text-[#14232B] mb-1.5">Cochez les abonnés concernés</p>
+              <div className="max-h-[180px] overflow-y-auto space-y-1 bg-white rounded-lg border border-[#E2E8E7] p-2">
+                {abonnes.map((a) => (
+                  <label key={a.refAbonne} className="flex items-center gap-2 text-[12px] py-1">
+                    <input type="checkbox" checked={!!selection[a.refAbonne]} onChange={() => toggleSelection(a.refAbonne)} />
+                    <span className="font-700">{a.nom}</span>
+                    <span className="text-[#5B7070]">· {a.zone}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <p className="text-[12px] font-700 text-[#14232B] mb-1.5">Message</p>
+            <div className="flex gap-2 flex-wrap mb-2">
+              {templates.map((t) => (
+                <button key={t.label} onClick={() => setMessage(t.texte)} className="text-[11px] font-700 px-2.5 py-1 rounded-full bg-white border border-[#E2E8E7] text-[#5B7070]">{t.label}</button>
+              ))}
+            </div>
+            <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} placeholder="Écrivez votre message ici..." className="w-full border border-[#E2E8E7] rounded-lg px-3 py-2 text-[13px]" />
+          </div>
+
+          <div className="bg-white rounded-lg border border-[#E2E8E7] px-3 py-2">
+            <p className="text-[12px] font-700 text-[#14232B]">{avecTelephone.length} destinataire(s) avec numéro WhatsApp enregistré</p>
+            {sansTelephone.length > 0 && (
+              <p className="text-[11px] text-[#C0392B]">{sansTelephone.length} abonné(s) exclu(s) — numéro de téléphone manquant dans leur fiche</p>
+            )}
+          </div>
+
+          {message.trim() && avecTelephone.length > 0 && (
+            <div className="space-y-1.5">
+              {avecTelephone.map((a) => (
+                <div key={a.refAbonne} className="flex items-center justify-between bg-white rounded-xl px-3 py-2 border border-[#E2E8E7]">
+                  <div>
+                    <p className="font-700 text-[13px] text-[#14232B]">{a.nom}</p>
+                    <p className="text-[11px] text-[#5B7070]">{a.zone} · {a.telephone}</p>
+                  </div>
+                  <button onClick={() => envoyer(a)} className={`text-[12px] font-700 px-3 py-2 rounded-lg ${envoyes[a.refAbonne] ? "bg-[#2E8B57]/20 text-[#2E8B57]" : "bg-[#25D366] text-white"}`}>
+                    {envoyes[a.refAbonne] ? "✓ Envoyé" : "Envoyer"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
