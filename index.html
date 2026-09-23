@@ -186,9 +186,38 @@ body { font-family: Manrope, sans-serif; }
   #boot-error { display: none; font-family: sans-serif; padding: 24px; color: #C0392B; white-space: pre-wrap; font-size: 13px; line-height: 1.6; }
   #boot-error h2 { color: #14232B; margin-top: 0; }
   #boot-error code { background: #F0F6F5; color: #14232B; padding: 8px; display: block; border-radius: 8px; font-size: 12px; overflow-x: auto; }
+
+  /* ── Écran de démarrage animé (goutte qui tombe) ── */
+  #hwm-splash { position: fixed; inset: 0; z-index: 99999; background: #F5F8F7; display: flex; align-items: center; justify-content: center; transition: opacity .6s ease, visibility .6s; }
+  #hwm-splash.hwm-hide { opacity: 0; visibility: hidden; pointer-events: none; }
+  #hwm-splash .hwm-inner { display: flex; flex-direction: column; align-items: center; gap: 26px; }
+  #hwm-splash .hwm-title { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 1.4rem; color: #14232B; font-weight: 600; letter-spacing: .01em; text-align: center; }
+  #hwm-splash .hwm-stage { position: relative; width: 140px; height: 170px; display: flex; align-items: flex-end; justify-content: center; }
+  #hwm-splash .hwm-logo { width: 112px; height: 112px; border-radius: 26px; box-shadow: 0 10px 30px rgba(15,92,107,.25); opacity: 0; transform: scale(.8); animation: hwm-pop .5s cubic-bezier(.34,1.56,.64,1) .95s forwards; }
+  #hwm-splash .hwm-drop { position: absolute; top: 0; left: 50%; width: 18px; height: 24px; margin-left: -9px; background: linear-gradient(160deg,#4FC7D6,#0B4F5E); border-radius: 0 60% 60% 60%; transform: translateY(-120px) rotate(45deg); animation: hwm-fall .85s cubic-bezier(.55,0,.85,.35) forwards; }
+  #hwm-splash .hwm-ripple { position: absolute; bottom: 8px; left: 50%; width: 14px; height: 14px; margin-left: -7px; border: 2px solid #0B4F5E; border-radius: 50%; opacity: 0; animation: hwm-ripple 900ms ease-out .85s forwards; }
+  #hwm-splash .hwm-ripple-b { animation-delay: 1.02s; border-color: #4FC7D6; }
+  @keyframes hwm-fall { 0% { transform: translateY(-120px) rotate(45deg); opacity: 1; } 80% { opacity: 1; } 100% { transform: translateY(0) rotate(45deg); opacity: 0; } }
+  @keyframes hwm-ripple { 0% { width: 14px; height: 14px; margin-left: -7px; opacity: .55; } 100% { width: 90px; height: 90px; margin-left: -45px; opacity: 0; } }
+  @keyframes hwm-pop { 0% { opacity: 0; transform: scale(.8); } 60% { opacity: 1; transform: scale(1.08); } 100% { opacity: 1; transform: scale(1); } }
+  @media (prefers-reduced-motion: reduce) {
+    #hwm-splash .hwm-drop, #hwm-splash .hwm-ripple { display: none; }
+    #hwm-splash .hwm-logo { opacity: 1; transform: none; animation: none; }
+  }
 </style>
 </head>
 <body>
+<div id="hwm-splash" aria-hidden="true">
+  <div class="hwm-inner">
+    <p class="hwm-title">Homs-Water Manager</p>
+    <div class="hwm-stage">
+      <div class="hwm-drop"></div>
+      <div class="hwm-ripple hwm-ripple-a"></div>
+      <div class="hwm-ripple hwm-ripple-b"></div>
+      <img class="hwm-logo" src="icons/apple-touch-icon.png" alt="" />
+    </div>
+  </div>
+</div>
 <div id="root"></div>
 <button
   id="sde-install-btn"
@@ -203,7 +232,15 @@ body { font-family: Manrope, sans-serif; }
     var s = window.__loadStatus || {};
     return Object.keys(s).map(function (k) { return "- " + k + " : " + s[k]; }).join("\n");
   }
+  function hideSplash() {
+    var el = document.getElementById("hwm-splash");
+    if (!el || el.dataset.hidden === "1") return;
+    el.dataset.hidden = "1";
+    el.classList.add("hwm-hide");
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 700);
+  }
   function showBootError(title, detail) {
+    hideSplash();
     var box = document.getElementById("boot-error");
     if (!box) return;
     box.style.display = "block";
@@ -240,6 +277,15 @@ body { font-family: Manrope, sans-serif; }
       showBootError("L'application ne s'est pas affichee apres 8 secondes", "Aucune erreur JavaScript detectee -- voir l'etat des ressources ci-dessus pour reperer ce qui n'a pas charge.");
     }
   }, 8000);
+  (function watchAppReady() {
+    var rootEl = document.getElementById("root");
+    if (!rootEl) return;
+    if (rootEl.childElementCount > 0) { hideSplash(); return; }
+    var obs = new MutationObserver(function () {
+      if (rootEl.childElementCount > 0) { hideSplash(); obs.disconnect(); }
+    });
+    obs.observe(rootEl, { childList: true });
+  })();
 </script>
 <script type="text/babel" data-presets="react">
 
