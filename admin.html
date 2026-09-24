@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+<script>try{var t=localStorage.getItem("hv_theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}</script>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Homslo/vision — Console Admin</title>
@@ -35,6 +36,25 @@
   --text:    #E8F0F8;
   --muted:   rgba(232,240,248,0.45);
   --warm:    #FCE8B8;
+}
+
+/* ── THÈMES ── */
+html[data-theme="light"] {
+  --bg: #F4F7FB; --surface: #FFFFFF; --card: #FFFFFF;
+  --border: rgba(27,95,168,0.18); --border2: rgba(27,95,168,0.10);
+  --text: #0D1E38; --muted: rgba(13,30,56,0.55); --warm: #FFF3D6;
+  --hv-blue2: #1B5FA8; --hv-blue3: #EAF1FA;
+}
+html[data-theme="blue"] {
+  --bg: #10305A; --surface: #163D70; --card: #1A4680;
+  --border: rgba(120,180,240,0.30); --border2: rgba(120,180,240,0.16);
+  --text: #EFF6FF; --muted: rgba(239,246,255,0.55);
+}
+html[data-theme="water"] {
+  --bg: #06242C; --surface: #0B333D; --card: #0F3D49;
+  --hv-blue: #00C2CB; --hv-cyan: #5FE0E6; --hv-orange: #E8722A;
+  --border: rgba(0,194,203,0.28); --border2: rgba(0,194,203,0.14);
+  --text: #EAF8F8; --muted: rgba(234,248,248,0.55);
 }
 
 html, body {
@@ -94,6 +114,15 @@ html, body {
   border-radius: 10px; padding: 10px 14px; font-size: 12px; color: #FFB3A7;
   margin-bottom: 16px; display: none;
 }
+.login-error.is-success {
+  background: rgba(46,204,113,0.12); border-color: rgba(46,204,113,0.35); color: #7BE0A5;
+}
+.forgot-link {
+  display: block; text-align: right; font-size: 11px; color: var(--hv-cyan);
+  margin: -8px 0 16px; background: none; border: 0; cursor: pointer; padding: 0;
+  font-family: inherit; text-decoration: underline;
+}
+.forgot-link:disabled { opacity: .6; cursor: default; }
 .field-label {
   display: block; font-size: 10px; font-weight: 700; color: var(--hv-cyan);
   letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px;
@@ -145,6 +174,18 @@ html, body {
   letter-spacing: 1px; text-transform: uppercase;
 }
 .header-right { display: flex; align-items: center; gap: 10px; }
+.theme-switch { display: flex; align-items: center; gap: 6px; padding: 4px; background: var(--border2); border-radius: 20px; }
+.theme-dot {
+  width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer;
+  padding: 0; transition: transform 0.15s, border-color 0.15s;
+}
+.theme-dot:hover { transform: scale(1.12); }
+.theme-dot.is-active { border-color: var(--text); }
+.theme-dot[data-t="dark"]  { background: linear-gradient(135deg,#0D1E38,#071325); }
+.theme-dot[data-t="light"] { background: linear-gradient(135deg,#FFFFFF,#DCE8F7); }
+.theme-dot[data-t="blue"]  { background: linear-gradient(135deg,#1B5FA8,#10305A); }
+.theme-dot[data-t="water"] { background: linear-gradient(135deg,#00C2CB,#06242C); }
+
 .header-email {
   font-size: 11px; color: var(--muted); font-family: monospace;
   background: rgba(27,95,168,0.12); padding: 4px 10px; border-radius: 6px;
@@ -350,36 +391,6 @@ tbody td { padding: 14px 18px; font-size: 13px; vertical-align: middle; }
   thead th:nth-child(5), tbody td:nth-child(5),
   thead th:nth-child(6), tbody td:nth-child(6) { display: none; }
 }
-
-/* ── AJOUT : landing, prospects, avis ── */
-.x-stats{grid-template-columns:repeat(4,1fr)}
-.x-stats .stat-card:nth-child(4)::before{background:linear-gradient(90deg,var(--hv-green),var(--hv-yellow))}
-.x-stats .stat-card:nth-child(4) .stat-accent{color:var(--hv-yellow)}
-@media (max-width:820px){.x-stats{grid-template-columns:repeat(2,1fr)}}
-.x-chart{display:flex;align-items:flex-end;gap:6px;height:170px;padding:22px 16px 8px}
-.x-bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;min-width:0}
-.x-bar i{display:block;width:100%;max-width:34px;border-radius:6px 6px 0 0;background:linear-gradient(180deg,var(--hv-cyan),var(--hv-blue));min-height:2px}
-.x-bar b{font-size:11px;color:var(--text);margin-bottom:3px}
-.x-bar span{font-size:10px;color:var(--muted);margin-top:4px}
-.x-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;padding:8px 16px 16px}
-.x-col h4{font-size:12px;color:var(--muted);font-weight:700;margin-bottom:8px}
-.x-col ul{list-style:none}
-.x-col li{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:5px 0;border-bottom:1px solid var(--border2)}
-.x-col li b{color:var(--hv-cyan)}
-.x-note{padding:0 16px 16px;font-size:11px;color:var(--muted)}
-.x-form{display:flex;flex-wrap:wrap;gap:8px;padding:16px;border-bottom:1px solid var(--border2)}
-.x-form input,.x-filter select,.x-sel{background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;min-height:40px}
-.x-form input{flex:1 1 150px;min-width:0}
-.x-filter{padding:12px 16px;display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
-.x-act{display:flex;flex-direction:column;gap:6px}
-.x-table th,.x-table td{padding:10px 8px}
-.x-table .x-sel{max-width:108px;font-size:12px;padding:8px 6px}
-.x-wa,.x-del{white-space:nowrap}
-.x-wa{background:#25D366;color:#062B35;border:0;border-radius:8px;padding:8px 12px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit}
-.x-del{background:transparent;color:var(--hv-red);border:1px solid rgba(231,76,60,.4);border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer;font-family:inherit}
-.x-fb{padding:14px 16px;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
-.x-fb p{font-size:14px;line-height:1.5;color:var(--text)}
-.x-fb small{color:var(--muted);font-size:11px}
 </style>
 </head>
 <body>
@@ -441,6 +452,7 @@ tbody td { padding: 14px 18px; font-size: 13px; vertical-align: middle; }
         <span class="field-icon">🔐</span>
         <input id="f-pass" type="password" placeholder="••••••••" autocomplete="current-password"/>
       </div>
+      <button type="button" class="forgot-link" id="forgot-btn" onclick="forgotPassword()">Mot de passe oublié ?</button>
       <button class="btn-login" id="login-btn" onclick="doLogin()">ACCÉDER À LA CONSOLE</button>
     </div>
   </div>
@@ -455,6 +467,12 @@ tbody td { padding: 14px 18px; font-size: 13px; vertical-align: middle; }
       <span class="header-module">Console Admin</span>
     </div>
     <div class="header-right">
+      <div class="theme-switch" role="group" aria-label="Couleur de la console">
+        <button class="theme-dot" data-t="dark"  title="Sombre" onclick="setTheme('dark')"></button>
+        <button class="theme-dot" data-t="light" title="Clair" onclick="setTheme('light')"></button>
+        <button class="theme-dot" data-t="blue"  title="Bleu" onclick="setTheme('blue')"></button>
+        <button class="theme-dot" data-t="water" title="Eau" onclick="setTheme('water')"></button>
+      </div>
       <span class="header-email" id="admin-email"></span>
       <button class="btn-refresh" onclick="loadData(); loadAffiliations(); loadPlanConfig();">↻ Actualiser</button>
       <button class="btn-logout" onclick="doLogout()">Déconnexion</button>
@@ -538,42 +556,6 @@ tbody td { padding: 14px 18px; font-size: 13px; vertical-align: middle; }
         </div>
       </div>
     </div>
-
-    <!-- ── AJOUT : Visites de la landing ── -->
-    <div class="section-label" style="margin-top:32px">Landing page — visites (30 derniers jours)</div>
-    <div class="stats-grid x-stats">
-      <div class="stat-card"><div class="stat-icon">👀</div><div class="stat-value" id="x-visits">—</div><div class="stat-label">Visites</div></div>
-      <div class="stat-card"><div class="stat-icon">🧑</div><div class="stat-value" id="x-uniques">—</div><div class="stat-label">Visiteurs uniques</div></div>
-      <div class="stat-card"><div class="stat-icon">🚀</div><div class="stat-value" id="x-start">—</div><div class="stat-label">Clics « Démarrer »</div></div>
-      <div class="stat-card"><div class="stat-icon">💬</div><div class="stat-value" id="x-wa">—</div><div class="stat-label">Clics WhatsApp</div></div>
-    </div>
-    <div class="table-card">
-      <div class="table-header"><div class="table-title"><span class="table-title-dot"></span>Visites par jour</div><span class="table-count">14 jours</span></div>
-      <div id="x-visits-body"><div class="loading"><div class="spinner"></div><div>Chargement des visites…</div></div></div>
-    </div>
-
-    <!-- ── AJOUT : Prospects ── -->
-    <div class="section-label" style="margin-top:32px">Prospects à relancer</div>
-    <div class="table-card">
-      <div class="table-header"><div class="table-title"><span class="table-title-dot"></span>Personnes intéressées</div><span class="table-count" id="x-p-count">0 prospect</span></div>
-      <div class="x-form">
-        <input id="x-p-nom" placeholder="Nom" maxlength="60">
-        <input id="x-p-wa" placeholder="WhatsApp (ex : 6XX XX XX XX)" inputmode="tel" maxlength="20">
-        <input id="x-p-sde" placeholder="SDE ou ville (facultatif)" maxlength="80">
-        <button class="btn-pay" onclick="addProspect()">+ Ajouter</button>
-      </div>
-      <div class="x-filter">Afficher :
-        <select id="x-p-filter" onchange="renderProspects()"><option value="tous">Tous</option><option value="nouveau">Nouveaux</option><option value="contacte">Contactés</option><option value="interesse">Intéressés</option><option value="abonne">Abonnés</option><option value="refus">Pas intéressés</option></select>
-      </div>
-      <div id="x-p-body"><div class="loading"><div class="spinner"></div><div>Chargement des prospects…</div></div></div>
-    </div>
-
-    <!-- ── AJOUT : Avis ── -->
-    <div class="section-label" style="margin-top:32px">Avis des visiteurs</div>
-    <div class="table-card">
-      <div class="table-header"><div class="table-title"><span class="table-title-dot"></span>Avis reçus</div><span class="table-count" id="x-f-count">0 avis</span></div>
-      <div id="x-f-body"><div class="loading"><div class="spinner"></div><div>Chargement des avis…</div></div></div>
-    </div>
   </div>
 
   <div class="footer">
@@ -613,9 +595,6 @@ auth.onAuthStateChanged(user => {
     loadData();
     loadAffiliations();
     loadPlanConfig();
-    loadVisits();
-    loadProspects();
-    loadFeedbacks();
   } else if (user) {
     auth.signOut();
     showLoginError("Accès refusé. Ce compte n'est pas autorisé.");
@@ -650,17 +629,56 @@ async function doLogin() {
   }
 }
 
+function setTheme(name) {
+  try {
+    if (name === "dark") { document.documentElement.removeAttribute("data-theme"); localStorage.removeItem("hv_theme"); }
+    else { document.documentElement.setAttribute("data-theme", name); localStorage.setItem("hv_theme", name); }
+  } catch (e) { document.documentElement.setAttribute("data-theme", name === "dark" ? "" : name); }
+  markActiveTheme();
+}
+function markActiveTheme() {
+  var current = document.documentElement.getAttribute("data-theme") || "dark";
+  document.querySelectorAll(".theme-dot").forEach(function (b) {
+    b.classList.toggle("is-active", b.dataset.t === current);
+  });
+}
+markActiveTheme();
+
 function doLogout() {
   auth.signOut();
   showToast("Déconnecté.", "success");
 }
 
-function showLoginError(msg) {
+function showLoginError(msg, isSuccess) {
   const el = document.getElementById("login-error");
-  el.textContent = "⚠️ " + msg; el.style.display = "block";
+  el.textContent = (isSuccess ? "✅ " : "⚠️ ") + msg;
+  el.classList.toggle("is-success", !!isSuccess);
+  el.style.display = "block";
 }
 function hideLoginError() {
-  document.getElementById("login-error").style.display = "none";
+  const el = document.getElementById("login-error");
+  el.style.display = "none";
+  el.classList.remove("is-success");
+}
+
+async function forgotPassword() {
+  const email = document.getElementById("f-email").value.trim();
+  const btn = document.getElementById("forgot-btn");
+  hideLoginError();
+  if (!email) { showLoginError("Entrez d'abord votre email ci-dessus, puis touchez à nouveau ce lien."); return; }
+  btn.disabled = true; btn.textContent = "Envoi en cours…";
+  try {
+    await auth.sendPasswordResetEmail(email);
+    showLoginError("Email envoyé à " + email + ". Ouvrez-le pour choisir un nouveau mot de passe.", true);
+  } catch (e) {
+    const msg =
+      e.code === "auth/invalid-email" ? "Cet email n'est pas valide." :
+      e.code === "auth/user-not-found" ? "Aucun compte trouvé avec cet email." :
+      e.code === "auth/too-many-requests" ? "Trop de tentatives. Patientez quelques minutes." :
+      e.message || String(e);
+    showLoginError(msg);
+  }
+  btn.disabled = false; btn.textContent = "Mot de passe oublié ?";
 }
 
 // ── Chargement données ──
@@ -993,176 +1011,6 @@ async function payerCommission(idx) {
   } catch(e) {
     showToast("Erreur : " + (e.message||e), "error");
   }
-}
-
-// ══ AJOUT : visites de la landing, prospects, avis ══
-const APP_URL = "https://app.homswater.com";
-const STATUTS = [["nouveau","Nouveau"],["contacte","Contacté"],["interesse","Intéressé"],["abonne","Abonné"],["refus","Pas intéressé"]];
-let prospectRows = [];
-
-function xErr(id, e) {
-  document.getElementById(id).innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div>${esc(e && e.message ? e.message : String(e))}</div>`;
-}
-function xDate(d) {
-  return d ? d.toLocaleDateString("fr-FR", { day:"2-digit", month:"short", year:"numeric" }) : "—";
-}
-function xTop(map, n) {
-  return Object.entries(map).sort((a,b) => b[1]-a[1]).slice(0, n);
-}
-function xList(title, entries) {
-  return `<div class="x-col"><h4>${title}</h4><ul>${
-    entries.length ? entries.map(([k,v]) => `<li><span>${esc(k)}</span><b>${v}</b></li>`).join("") : `<li><span class="td-muted">—</span></li>`
-  }</ul></div>`;
-}
-
-async function loadVisits() {
-  try {
-    const since = new Date(Date.now() - 30*864e5);
-    const snap = await db.collection("landing_events").where("ts", ">=", since).orderBy("ts", "desc").limit(5000).get();
-    const rows = snap.docs.map(d => { const x = d.data(); return { ...x, t: (x.ts && x.ts.toDate) ? x.ts.toDate() : new Date() }; });
-    renderVisits(rows);
-  } catch (e) { xErr("x-visits-body", e); }
-}
-
-function renderVisits(rows) {
-  const visits = rows.filter(r => r.type === "visit");
-  const uniques = new Set(visits.map(r => r.vid)).size;
-  const count = t => rows.filter(r => r.type === t).length;
-  document.getElementById("x-visits").textContent  = visits.length;
-  document.getElementById("x-uniques").textContent = uniques;
-  document.getElementById("x-start").textContent   = count("click_start");
-  document.getElementById("x-wa").textContent      = count("click_wa");
-
-  if (!rows.length) {
-    document.getElementById("x-visits-body").innerHTML = `<div class="empty-state"><div class="empty-icon">📈</div>Aucune visite enregistrée pour l'instant.</div>`;
-    return;
-  }
-  const days = [];
-  for (let i = 13; i >= 0; i--) { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - i); days.push(d); }
-  const key = d => d.getFullYear() + "-" + d.getMonth() + "-" + d.getDate();
-  const perDay = {};
-  visits.forEach(r => { const k = key(r.t); perDay[k] = (perDay[k] || 0) + 1; });
-  const max = Math.max(1, ...days.map(d => perDay[key(d)] || 0));
-  const bars = days.map(d => { const v = perDay[key(d)] || 0;
-    return `<div class="x-bar"><b>${v || ""}</b><i style="height:${Math.round(v / max * 100)}%"></i><span>${d.getDate()}</span></div>`; }).join("");
-
-  const tally = (list, f) => { const m = {}; list.forEach(r => { const k = f(r); m[k] = (m[k] || 0) + 1; }); return m; };
-  const langs   = tally(visits, r => r.lang === "en" ? "Anglais" : "Français");
-  const devices = tally(visits, r => r.device === "desktop" ? "Ordinateur" : "Mobile");
-  const srcs    = tally(visits, r => r.ref || "direct");
-  const actions = [["Voir la démo", count("click_demo")], ["Démarrer gratuitement", count("click_start")], ["WhatsApp", count("click_wa")]];
-
-  document.getElementById("x-visits-body").innerHTML =
-    `<div class="x-chart">${bars}</div>
-     <div class="x-cols">${xList("Langue", xTop(langs,3))}${xList("Appareil", xTop(devices,3))}${xList("Provenance", xTop(srcs,5))}${xList("Actions", actions)}</div>
-     <div class="x-note">Chiffres approximatifs : un visiteur est compté une fois par session, et quelques robots peuvent s'y glisser. Astuce : ajoutez ?src=whatsapp à votre lien pour savoir d'où viennent les visites.</div>`;
-}
-
-// ── Prospects ──
-async function loadProspects() {
-  try {
-    const snap = await db.collection("prospects").orderBy("createdAt", "desc").limit(300).get();
-    prospectRows = snap.docs.map(d => { const x = d.data(); return { id: d.id, ...x, t: (x.createdAt && x.createdAt.toDate) ? x.createdAt.toDate() : null }; });
-    renderProspects();
-  } catch (e) { xErr("x-p-body", e); }
-}
-
-function renderProspects() {
-  const f = document.getElementById("x-p-filter").value;
-  const list = prospectRows.map((r, i) => ({ r, i })).filter(({ r }) => f === "tous" || (r.statut || "nouveau") === f);
-  document.getElementById("x-p-count").textContent = prospectRows.length + " prospect" + (prospectRows.length > 1 ? "s" : "");
-  if (!list.length) {
-    document.getElementById("x-p-body").innerHTML = `<div class="empty-state"><div class="empty-icon">🤝</div>Aucun prospect ${f === "tous" ? "pour l'instant" : "dans cette catégorie"}.</div>`;
-    return;
-  }
-  document.getElementById("x-p-body").innerHTML = `<div class="table-wrap"><table class="x-table">
-    <thead><tr><th>Prospect</th><th>Statut</th><th>Actions</th></tr></thead>
-    <tbody>${list.map(({ r, i }) => `<tr>
-      <td><div class="td-name">${esc(r.nom)}</div><div class="td-id">${esc(r.sde || "")}</div><div class="td-muted">${esc(r.whatsapp)}</div><div class="td-muted">${r.source === "landing" ? "Landing" : "Ajouté"} · ${xDate(r.t)}</div></td>
-      <td><select class="x-sel" onchange="setProspectStatus(${i}, this.value)">${STATUTS.map(([v, l]) => `<option value="${v}" ${(r.statut || "nouveau") === v ? "selected" : ""}>${l}</option>`).join("")}</select></td>
-      <td><div class="x-act"><button class="x-wa" onclick="relancer(${i})">Relancer</button><button class="x-del" onclick="delProspect(${i})">Supprimer</button></div></td>
-    </tr>`).join("")}</tbody></table></div>`;
-}
-
-function waNumber(raw) {
-  let d = String(raw || "").replace(/\D/g, "");
-  if (d.startsWith("00")) d = d.slice(2);
-  if (d.length === 9) d = "237" + d;
-  return d;
-}
-
-async function addProspect() {
-  const nom = document.getElementById("x-p-nom").value.trim();
-  const wa  = document.getElementById("x-p-wa").value.trim();
-  const sde = document.getElementById("x-p-sde").value.trim();
-  const digits = wa.replace(/\D/g, "");
-  if (nom.length < 2)  { showToast("Entrez le nom du prospect", "error"); return; }
-  if (digits.length < 8 || digits.length > 15) { showToast("Numéro WhatsApp invalide", "error"); return; }
-  try {
-    await db.collection("prospects").add({ nom: nom.slice(0,60), whatsapp: wa.slice(0,20), sde: sde.slice(0,80), source: "admin", statut: "nouveau", createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-    ["x-p-nom","x-p-wa","x-p-sde"].forEach(id => document.getElementById(id).value = "");
-    showToast("Prospect ajouté");
-    loadProspects();
-  } catch (e) { showToast("Erreur : " + (e.message || e), "error"); }
-}
-
-async function setProspectStatus(i, val) {
-  const r = prospectRows[i];
-  try {
-    await db.collection("prospects").doc(r.id).update({ statut: val });
-    r.statut = val;
-    showToast("Statut mis à jour");
-  } catch (e) { showToast("Erreur : " + (e.message || e), "error"); renderProspects(); }
-}
-
-async function relancer(i) {
-  const r = prospectRows[i];
-  const n = waNumber(r.whatsapp);
-  if (!n) { showToast("Numéro invalide", "error"); return; }
-  const msg = `Bonjour ${r.nom}, c'est l'équipe Homs-Water Manager. Vous aviez montré de l'intérêt pour notre solution de gestion d'eau pour les SDEs. Puis-je vous aider à démarrer gratuitement ? ${APP_URL}`;
-  window.open("https://wa.me/" + n + "?text=" + encodeURIComponent(msg), "_blank");
-  if ((r.statut || "nouveau") === "nouveau") { await setProspectStatus(i, "contacte"); renderProspects(); }
-}
-
-async function delProspect(i) {
-  const r = prospectRows[i];
-  if (!confirm("Supprimer le prospect " + r.nom + " ?")) return;
-  try {
-    await db.collection("prospects").doc(r.id).delete();
-    prospectRows.splice(i, 1);
-    renderProspects();
-    showToast("Prospect supprimé");
-  } catch (e) { showToast("Erreur : " + (e.message || e), "error"); }
-}
-
-// ── Avis ──
-let feedbackRows = [];
-async function loadFeedbacks() {
-  try {
-    const snap = await db.collection("feedbacks").orderBy("createdAt", "desc").limit(100).get();
-    feedbackRows = snap.docs.map(d => { const x = d.data(); return { id: d.id, ...x, t: (x.createdAt && x.createdAt.toDate) ? x.createdAt.toDate() : null }; });
-    renderFeedbacks();
-  } catch (e) { xErr("x-f-body", e); }
-}
-function renderFeedbacks() {
-  document.getElementById("x-f-count").textContent = feedbackRows.length + " avis";
-  if (!feedbackRows.length) {
-    document.getElementById("x-f-body").innerHTML = `<div class="empty-state"><div class="empty-icon">💬</div>Aucun avis reçu pour l'instant.</div>`;
-    return;
-  }
-  document.getElementById("x-f-body").innerHTML = feedbackRows.map((r, i) => `
-    <div class="x-fb"><div><p>${esc(r.texte)}</p><small>${esc(r.nom || "Anonyme")} · ${xDate(r.t)}</small></div>
-    <button class="x-del" onclick="delFeedback(${i})">Supprimer</button></div>`).join("");
-}
-async function delFeedback(i) {
-  const r = feedbackRows[i];
-  if (!confirm("Supprimer cet avis ?")) return;
-  try {
-    await db.collection("feedbacks").doc(r.id).delete();
-    feedbackRows.splice(i, 1);
-    renderFeedbacks();
-    showToast("Avis supprimé");
-  } catch (e) { showToast("Erreur : " + (e.message || e), "error"); }
 }
 </script>
 </body>
