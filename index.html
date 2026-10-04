@@ -332,7 +332,22 @@ const periodeLabel = (p) => {
   const [y, m] = p.split("-");
   return `${MOIS_FR[parseInt(m, 10) - 1]} ${y}`;
 };
-const fmt = (n) => (Number(n) || 0).toLocaleString("fr-FR") + " FCFA";
+const DEVISES = [
+  { court: "FCFA", label: "FCFA — Franc CFA (Afrique centrale et de l'Ouest)" },
+  { court: "€",    label: "€ — Euro" },
+  { court: "$",    label: "$ — Dollar US" },
+  { court: "₦",    label: "₦ — Naira (Nigeria)" },
+  { court: "GHS",  label: "GHS — Cedi (Ghana)" },
+  { court: "GNF",  label: "GNF — Franc guinéen" },
+  { court: "CDF",  label: "CDF — Franc congolais" },
+  { court: "MAD",  label: "MAD — Dirham (Maroc)" },
+  { court: "EGP",  label: "EGP — Livre égyptienne" },
+  { court: "KES",  label: "KES — Shilling kényan" },
+  { court: "ZAR",  label: "ZAR — Rand (Afrique du Sud)" },
+];
+let DEVISE_ACTUELLE = "FCFA"; // mis à jour à chaque rendu de <App> depuis data.params.devise
+const fmt = (n) => (Number(n) || 0).toLocaleString("fr-FR") + " " + DEVISE_ACTUELLE;
+const fmtNombre = (n) => (Number(n) || 0).toLocaleString("fr-FR"); // montant sans devise (pour les lignes de calcul détaillées)
 const fmtDate = (iso) => {
   if (!iso) return "—";
   const [y, m, d] = String(iso).split("-");
@@ -419,7 +434,7 @@ const DEFAULT_DATA = {
   depenses: {}, // ancien système (par période, conservé pour l'historique, non affiché)
   depensesLignes: [], // nouveau système : liste plate et cumulative des dépenses, comme "paiements"
   recettesDiverses: [], // argent encaissé hors facture d'eau (pénalité, vente de matériel usagé, etc.)
-  params: { prixUnitaire: 500, fraisEntretien: 500, caisses: null },
+  params: { prixUnitaire: 500, fraisEntretien: 500, caisses: null, devise: "FCFA" },
   gicInfo: { nom: "GIC ACTION D'ENTRAIDE POUR TOUS", logo: null },
 };
 
@@ -684,19 +699,7 @@ function RegisterScreen({ auth, db, onRegistered }) {
       // NB : le parrain n'est pas un SDE, c'est un affilié indépendant (collection "affiliates")
       const parrain = await window.Affiliation.trouverParrain(db, form.codeParrain);
 
-      // 2. Créer le profil utilisateur dans users/{uid}
-      await db.collection("users").doc(uid).set({
-        gicId,
-        email: form.email.trim(),
-        role: "administrateur",
-        nom: form.nomSDE.trim(),
-        plan: "starter",
-        createdAt: new Date().toISOString(),
-        referredByAffiliateId: parrain ? parrain.id : null,
-        referralStartDate: parrain ? new Date().toISOString() : null,
-      });
-
-      // 3. Initialiser les données SDE dans gics/{gicId}/data/main
+      // 2. Initialiser les données SDE dans gics/{gicId}/data/main (EN PREMIER : ainsi, quand le profil apparaît, les données existent déjà)
       await db.collection("gics").doc(gicId).collection("data").doc("main").set({
         abonnes: [],
         releves: [],
@@ -706,6 +709,18 @@ function RegisterScreen({ auth, db, onRegistered }) {
         params: { prixUnitaire: 500, fraisEntretien: 500, libellesDepenses: ["Maintenance","Matériaux","Carburant","Réunion","Divers"] },
         gicInfo: { nom: form.nomSDE.trim(), quartier: form.quartier.trim() + (form.ville ? ", " + form.ville : ""), logo: null, adresse: form.quartier.trim() + ", " + form.ville },
         zones: ["Zone 1","Zone 2","Zone 3","Zone 4"],
+      });
+
+      // 3. Créer le profil utilisateur dans users/{uid} (EN DERNIER : sa présence signale que l'inscription est complète)
+      await db.collection("users").doc(uid).set({
+        gicId,
+        email: form.email.trim(),
+        role: "administrateur",
+        nom: form.nomSDE.trim(),
+        plan: "starter",
+        createdAt: new Date().toISOString(),
+        referredByAffiliateId: parrain ? parrain.id : null,
+        referralStartDate: parrain ? new Date().toISOString() : null,
       });
 
       setStep(3);
@@ -1192,6 +1207,7 @@ function ParametresTab({ gicInfo, params, abonnes, releves, paiements, libellesD
   const [logoPreview, setLogoPreview] = useState(gicInfo?.logo || "");
   const [prixUnitaire, setPrixUnitaire] = useState(params.prixUnitaire);
   const [fraisEntretien, setFraisEntretien] = useState(params.fraisEntretien);
+  const [devise, setDevise] = useState(params.devise || "FCFA");
   const [libellesList, setLibellesList] = useState(libellesDepenses);
 
   const handleLogoUpload = (e) => {
@@ -1235,13 +1251,18 @@ function ParametresTab({ gicInfo, params, abonnes, releves, paiements, libellesD
 
       <Card className="mb-4">
         <SectionTitle>Tarifs</SectionTitle>
-        <Field label="Prix unitaire (FCFA / m³)">
+        <Field label="Devise (monnaie utilisée)">
+          <select className={inputCls} value={devise} onChange={(e) => setDevise(e.target.value)}>
+            {DEVISES.map((d) => <option key={d.court} value={d.court}>{d.label}</option>)}
+          </select>
+        </Field>
+        <Field label={`Prix unitaire (${devise} / m³)`}>
           <input type="number" className={inputCls} value={prixUnitaire} onChange={(e) => setPrixUnitaire(e.target.value)} />
         </Field>
-        <Field label="Frais d'entretien fixe (FCFA)">
+        <Field label={`Frais d'entretien fixe (${devise})`}>
           <input type="number" className={inputCls} value={fraisEntretien} onChange={(e) => setFraisEntretien(e.target.value)} />
         </Field>
-        <BigButton icon={Save} onClick={() => onSaveTarifs({ prixUnitaire: Number(prixUnitaire), fraisEntretien: Number(fraisEntretien) })}>
+        <BigButton icon={Save} onClick={() => onSaveTarifs({ prixUnitaire: Number(prixUnitaire), fraisEntretien: Number(fraisEntretien), devise })}>
           Enregistrer les tarifs
         </BigButton>
       </Card>
@@ -1407,6 +1428,7 @@ function App() {
   const [demoData, setDemoData] = useState(null);
   // Source de données active : démo (mémoire) OU réelle (Firebase)
   const activeData = (isDemo && demoData) ? demoData : data;
+  DEVISE_ACTUELLE = (activeData && activeData.params && activeData.params.devise) || "FCFA";
   const [roleChecked, setRoleChecked] = useState(false);
   const [syncError, setSyncError] = useState("");
 
@@ -1420,7 +1442,15 @@ function App() {
       if (user) {
         try {
           const userRef = db.collection("users").doc(user.uid);
-          const userDoc = await userRef.get();
+          let userDoc = await userRef.get();
+          // Inscription en cours : le profil est écrit quelques instants APRÈS la création du compte.
+          // Plutôt que de déconnecter tout de suite, on patiente un peu (max ~6 s) avant de conclure qu'il n'existe pas.
+          if (!userDoc.exists && !EMAIL_TO_ROLE[user.email]) {
+            for (let essai = 0; essai < 8 && !userDoc.exists; essai++) {
+              await new Promise((r) => setTimeout(r, 750));
+              userDoc = await userRef.get();
+            }
+          }
           if (userDoc.exists) {
             const profile = userDoc.data();
             // Compte SDE créé via RegisterScreen ou ancien compte GIC AEPT
@@ -1605,7 +1635,7 @@ function App() {
     } else {
       setTimeout(() => setSaving(false), 150);
     }
-  }, []);
+  }, [isDemo, gicId]);
 
   const showToast = (msg) => {
     setToast(msg);
@@ -2096,7 +2126,7 @@ function App() {
                   );
                 } else {
                   persist({ ...activeData, abonnes: [...activeData.abonnes, a] });
-                  logAction("Abonné ajouté", newA.nom || "");
+                  logAction("Abonné ajouté", a.nom || "");
                 showToast("Abonné ajouté");
                 }
               }}
@@ -3012,7 +3042,7 @@ function DepensesTab({ periode, canManage, canAdd, depensesLignes, depensesDuMoi
               </datalist>
               <p className="text-[10.5px] text-[#8FA3A3] mt-1">Appuie sur le champ pour voir les suggestions, ou tape directement un libellé libre.</p>
             </Field>
-            <Field label="Montant (FCFA)">
+            <Field label={`Montant (${DEVISE_ACTUELLE})`}>
               <input type="number" className={inputCls} value={form.montant} onChange={(e) => setForm({ ...form, montant: e.target.value })} placeholder="0" />
             </Field>
             <Field label="Nom de l'acteur (qui a fait/autorisé la dépense)">
@@ -3295,6 +3325,7 @@ function Abonnes({ abonnes, zones, periode, canManage, canAdd, onAdd, onUpdate, 
   const [showImport, setShowImport] = useState(false);
   const [q, setQ] = useState("");
   const [editingId, setEditingId] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null); // suppression d'un abonné en 2 étapes (comme paiements/dépenses)
   const empty = { refAbonne: "", nom: "", zone: zones[0] || "Zone 1", localisation: "", numCompteur: "", telephone: "", statut: "Actif" };
   const [form, setForm] = useState(empty);
   const emptyAbonnement = { active: false, montant: "", avance: "" };
@@ -3424,10 +3455,10 @@ function Abonnes({ abonnes, zones, periode, canManage, canAdd, onAdd, onUpdate, 
                 </label>
                 {abonnement.active && (
                   <>
-                    <Field label="Montant total négocié (FCFA)">
+                    <Field label={`Montant total négocié (${DEVISE_ACTUELLE})`}>
                       <input type="number" className={inputCls} value={abonnement.montant} onChange={(e) => setAbonnement({ ...abonnement, montant: e.target.value })} placeholder="Ex: 100000" />
                     </Field>
-                    <Field label="Avance versée maintenant (FCFA)">
+                    <Field label={`Avance versée maintenant (${DEVISE_ACTUELLE})`}>
                       <input type="number" className={inputCls} value={abonnement.avance} onChange={(e) => setAbonnement({ ...abonnement, avance: e.target.value })} placeholder="Ex: 40000" />
                     </Field>
                     {Number(abonnement.montant) > 0 && (
@@ -3466,10 +3497,17 @@ function Abonnes({ abonnes, zones, periode, canManage, canAdd, onAdd, onUpdate, 
                   {a.statut}
                 </span>
                 {canManage && (
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => startEdit(a)} className="text-[#0F5C6B]"><Pencil size={16} /></button>
-                    <button onClick={() => onDelete(a.id)} className="text-[#C0392B]"><Trash2 size={16} /></button>
-                  </div>
+                  confirmDeleteId === a.id ? (
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => { onDelete(a.id); setConfirmDeleteId(null); }} className="text-[10px] font-700 text-white bg-[#C0392B] rounded-full px-2 py-1">Confirmer</button>
+                      <button onClick={() => setConfirmDeleteId(null)} className="text-[10px] font-700 text-[#8FA3A3]">Annuler</button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => startEdit(a)} className="text-[#0F5C6B]"><Pencil size={16} /></button>
+                      <button onClick={() => setConfirmDeleteId(a.id)} className="text-[#C0392B]"><Trash2 size={16} /></button>
+                    </div>
+                  )
                 )}
               </div>
             </div>
@@ -3617,10 +3655,10 @@ function Releve({ periode, abonnes, zones, params, isDev, canAdd, canManage, pai
 
       {isDev && showParams && (
         <Card className="mb-3">
-          <Field label="Prix unitaire (FCFA / m³)">
+          <Field label={`Prix unitaire (${DEVISE_ACTUELLE} / m³)`}>
             <input type="number" className={inputCls} value={p.prixUnitaire} onChange={(e) => setP({ ...p, prixUnitaire: e.target.value })} />
           </Field>
-          <Field label="Frais d'entretien fixe (FCFA)">
+          <Field label={`Frais d'entretien fixe (${DEVISE_ACTUELLE})`}>
             <input type="number" className={inputCls} value={p.fraisEntretien} onChange={(e) => setP({ ...p, fraisEntretien: e.target.value })} />
           </Field>
           <BigButton icon={Save} onClick={() => { onSaveParams({ prixUnitaire: Number(p.prixUnitaire), fraisEntretien: Number(p.fraisEntretien) }); setShowParams(false); }}>
@@ -3665,7 +3703,7 @@ function Releve({ periode, abonnes, zones, params, isDev, canAdd, canManage, pai
               <input type="number" disabled={lockedForEdit} className={inputCls + (lockedForEdit ? " !bg-[#EDF2F1] !text-[#5B7070]" : "")} value={nouveau} onChange={(e) => setNouveau(e.target.value)} />
             </Field>
           </div>
-          <Field label="Impayés / avances antérieurs (FCFA)">
+          <Field label={`Impayés / avances antérieurs (${DEVISE_ACTUELLE})`}>
             <input type="number" disabled={lockedForEdit} className={inputCls + (lockedForEdit ? " !bg-[#EDF2F1] !text-[#5B7070]" : "")} value={impayes} onChange={(e) => setImpayes(e.target.value)} />
           </Field>
 
@@ -3879,7 +3917,7 @@ function Historique({ abonnes, releves, paiements, resteAPayer, canAdd, canManag
             <Field label="Date">
               <input type="date" className={inputCls} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
             </Field>
-            <Field label="Montant versé (FCFA)">
+            <Field label={`Montant versé (${DEVISE_ACTUELLE})`}>
               <input type="number" className={inputCls} value={form.montant} onChange={(e) => setForm({ ...form, montant: e.target.value })} required />
             </Field>
             <Field label="Mode de paiement">
@@ -3968,7 +4006,7 @@ function Historique({ abonnes, releves, paiements, resteAPayer, canAdd, canManag
             <Field label="Libellé (ex: Vente motopompe usagée)">
               <input className={inputCls} value={recetteForm.libelle} onChange={(e) => setRecetteForm({ ...recetteForm, libelle: e.target.value })} placeholder="Ex: Pénalité retard" />
             </Field>
-            <Field label="Montant (FCFA)">
+            <Field label={`Montant (${DEVISE_ACTUELLE})`}>
               <input type="number" className={inputCls} value={recetteForm.montant} onChange={(e) => setRecetteForm({ ...recetteForm, montant: e.target.value })} placeholder="0" />
             </Field>
             <Field label="Date">
@@ -4127,7 +4165,7 @@ function FacturePrint({ r, a, gicNom, gicLogo }) {
           <tr><td style={tdL}>Réf. / Zone</td><td style={tdR}>{a?.refAbonne} — {a?.zone}</td></tr>
           <tr><td style={tdL}>N° compteur</td><td style={tdR}>{a?.numCompteur}</td></tr>
           <tr><td style={tdL}>Ancien / Nouveau index</td><td style={tdR}>{r.ancienIndex} → {r.nouveauIndex}</td></tr>
-          <tr><td style={tdL}>Consommation</td><td style={tdR}>{r.consommation} m³ × {fmt(r.prixUnitaire).replace(" FCFA","")} = {fmt(r.montantConso)}</td></tr>
+          <tr><td style={tdL}>Consommation</td><td style={tdR}>{r.consommation} m³ × {fmtNombre(r.prixUnitaire)} = {fmt(r.montantConso)}</td></tr>
           <tr><td style={tdL}>Frais entretien</td><td style={tdR}>{fmt(r.fraisEntretien)}</td></tr>
           <tr><td style={tdL}>Impayés antérieurs</td><td style={tdR}>{fmt(r.impayesAnterieurs)}</td></tr>
         </tbody>
@@ -4504,7 +4542,7 @@ function ClientsInsolvablesPrint({ periode, rows, gicNom, gicLogo, gicAdresse })
             gicLogo={gicLogo}
             gicAdresse={gicAdresse}
             titre={`Fiche des clients insolvables — ${periodeLabel(periode)}${pages.length > 1 ? ` (page ${pageIndex + 1}/${pages.length})` : ""}`}
-            sousTitre="Abonnés présentant un solde impayé, avec les 3 derniers versements enregistrés (du plus récent au plus ancien). Montants en FCFA."
+            sousTitre={`Abonnés présentant un solde impayé, avec les 3 derniers versements enregistrés (du plus récent au plus ancien). Montants en ${DEVISE_ACTUELLE}.`}
           />
 
           {pageIndex === 0 && (
