@@ -509,7 +509,7 @@ tbody td { padding: 14px 18px; font-size: 13px; vertical-align: middle; }
         <button class="theme-dot" data-t="water" title="Eau" onclick="setTheme('water')"></button>
       </div>
       <span class="header-email" id="admin-email"></span>
-      <button class="btn-refresh" onclick="loadData(); loadAffiliations(); loadPlanConfig();">↻ Actualiser</button>
+      <button class="btn-refresh" onclick="loadData(); loadAffiliations(); loadParrains(); loadPlanConfig();">↻ Actualiser</button>
       <button class="btn-logout" onclick="doLogout()">Déconnexion</button>
     </div>
   </header>
@@ -591,6 +591,16 @@ tbody td { padding: 14px 18px; font-size: 13px; vertical-align: middle; }
         </div>
       </div>
     </div>
+    <!-- ── AJOUT : Parrains inscrits (réinitialisation du PIN) ── -->
+    <div class="section-label" style="margin-top:32px">Programme de parrainage — parrains inscrits</div>
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-title"><span class="table-title-dot"></span>Liste des parrains</div>
+        <span class="table-count" id="parrains-count">0 parrain</span>
+      </div>
+      <div id="parrains-result"></div>
+      <div id="parrains-body"><div class="loading"><div class="spinner"></div><div>Chargement des parrains…</div></div></div>
+    </div>
     <!-- ── AJOUT : Visites de la landing ── -->
     <div class="section-label" style="margin-top:32px">Landing page — visites (30 derniers jours)</div>
     <div class="stats-grid x-stats">
@@ -664,6 +674,7 @@ auth.onAuthStateChanged(user => {
     document.getElementById("admin-email").textContent    = user.email;
     loadData();
     loadAffiliations();
+    loadParrains();
     loadPlanConfig();
     loadVisits();
     loadProspects();
@@ -1085,6 +1096,85 @@ async function payerCommission(idx) {
     showToast("Erreur : " + (e.message||e), "error");
   }
 }
+// ══ AJOUT : parrains inscrits + réinitialisation du PIN ══
+let parrainRows = [];
+let parrainPinTemp = null; // { nom, whatsapp, pin } — gardé en mémoire seulement, jamais enregistré en clair
+
+async function loadParrains() {
+  const body = document.getElementById("parrains-body");
+  try {
+    const snap = await db.collection("affiliates").get();
+    parrainRows = [];
+    snap.forEach(d => { const x = d.data(); parrainRows.push({ id: d.id, nom: x.nom || "Parrain", whatsapp: x.whatsapp || "", code: x.referralCode || "", createdAt: x.createdAt || "" }); });
+    parrainRows.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    renderParrains();
+  } catch (e) {
+    body.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div>${esc(e && e.message ? e.message : String(e))}</div>`;
+  }
+}
+
+function renderParrains() {
+  document.getElementById("parrains-count").textContent = parrainRows.length + " parrain" + (parrainRows.length > 1 ? "s" : "");
+  if (!parrainRows.length) {
+    document.getElementById("parrains-body").innerHTML = `<div class="empty-state"><div class="empty-icon">🤝</div>Aucun parrain inscrit pour le moment.</div>`;
+    return;
+  }
+  document.getElementById("parrains-body").innerHTML = `
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Parrain</th><th>Code</th><th>Inscrit le</th><th>Action</th></tr></thead>
+      <tbody>
+        ${parrainRows.map((r, i) => `
+          <tr>
+            <td><div class="td-name">${esc(r.nom)}</div><div class="td-id">${esc(r.whatsapp)}</div></td>
+            <td><span class="nb-chip">${esc(r.code)}</span></td>
+            <td class="td-muted">${r.createdAt ? esc(xDate(new Date(r.createdAt))) : "—"}</td>
+            <td><button class="btn-pay" onclick="reinitialiserPin(${i})">🔑 Réinitialiser le PIN</button></td>
+          </tr>`).join("")}
+      </tbody>
+    </table></div>`;
+}
+
+async function reinitialiserPin(idx) {
+  const r = parrainRows[idx];
+  if (!r) return;
+  if (!confirm("Créer un nouveau PIN temporaire pour " + r.nom + " (" + r.whatsapp + ") ?\n\nSon ancien PIN ne fonctionnera plus.")) return;
+  try {
+    // PIN temporaire à 4 chiffres, tiré au hasard
+    const n = new Uint32Array(1); crypto.getRandomValues(n);
+    const pin = String(n[0] % 10000).padStart(4, "0");
+    const hash = await window.Affiliation.hashPin(pin);
+    await db.collection("affiliates").doc(r.id).update({ pinHash: hash });
+    parrainPinTemp = { nom: r.nom, whatsapp: r.whatsapp, pin: pin };
+    document.getElementById("parrains-result").innerHTML = `
+      <div style="margin:14px 16px;padding:14px 16px;border-radius:12px;border:1px solid var(--hv-green);background:rgba(46,204,113,0.08)">
+        <div style="font-weight:800;margin-bottom:6px">✅ Nouveau PIN de ${esc(r.nom)}</div>
+        <div style="font-size:30px;font-weight:800;letter-spacing:6px;margin:6px 0">${esc(pin)}</div>
+        <div class="td-muted" style="margin-bottom:10px">Affiché une seule fois : envoie-le tout de suite au parrain. Il pourra se connecter avec son numéro WhatsApp et ce PIN.</div>
+        <button class="btn-pay" onclick="envoyerPinWhatsApp()">💬 Envoyer par WhatsApp</button>
+        <button class="btn-pay" style="margin-left:8px;background:var(--hv-border,#3a4a50);color:inherit" onclick="effacerPinTemp()">Masquer</button>
+      </div>`;
+    showToast("PIN réinitialisé pour " + r.nom, "success");
+  } catch (e) {
+    showToast("Erreur : " + (e.message || e), "error");
+  }
+}
+
+function envoyerPinWhatsApp() {
+  const t = parrainPinTemp;
+  if (!t) return;
+  const num = waNumber(t.whatsapp);
+  if (!num) { showToast("Numéro invalide", "error"); return; }
+  const msg = "Bonjour " + t.nom + ", voici votre nouveau code PIN temporaire pour votre page parrain Homs-Water Manager : " + t.pin +
+    ". Connectez-vous sur " + APP_URL + "/parrainage.html avec votre numéro WhatsApp et ce PIN. — Équipe Homslo/Vision";
+  window.open("https://wa.me/" + num + "?text=" + encodeURIComponent(msg), "_blank");
+}
+
+function effacerPinTemp() {
+  parrainPinTemp = null;
+  document.getElementById("parrains-result").innerHTML = "";
+}
+
 // ══ AJOUT : visites de la landing, prospects, avis ══
 const APP_URL = "https://app.homswater.com";
 const STATUTS = [["nouveau","Nouveau"],["contacte","Contacté"],["interesse","Intéressé"],["abonne","Abonné"],["refus","Pas intéressé"]];

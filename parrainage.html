@@ -109,6 +109,15 @@ function Connexion({ onConnecte, allerInscription }) {
         {erreur && <p style={{ color: "#C0392B", fontSize: 13, marginTop: -6, marginBottom: 12 }}>{erreur}</p>}
         <button style={btnStyle} disabled={loading}>{loading ? "Connexion..." : "Se connecter"}</button>
       </form>
+      <p style={{ textAlign: "center", fontSize: 13, color: "#777", marginTop: 14 }}>
+        <a href="#" onClick={(e) => {
+          e.preventDefault();
+          const msg = "Bonjour, j'ai oublié mon code PIN de parrain Homs-Water Manager." + (whatsapp.trim() ? " Mon numéro WhatsApp : " + whatsapp.trim() + "." : "") + " Pouvez-vous le réinitialiser ?";
+          window.open("https://wa.me/237679437377?text=" + encodeURIComponent(msg), "_blank");
+        }} style={{ color: "#0F5C6B", fontWeight: 700 }}>
+          PIN oublié ?
+        </a>
+      </p>
       <p style={{ textAlign: "center", fontSize: 13, color: "#777", marginTop: 18 }}>
         Pas encore parrain ?{" "}
         <a href="#" onClick={(e) => { e.preventDefault(); allerInscription(); }} style={{ color: "#0F5C6B", fontWeight: 700 }}>
