@@ -348,6 +348,16 @@ const DEVISES = [
 let DEVISE_ACTUELLE = "FCFA"; // mis à jour à chaque rendu de <App> depuis data.params.devise
 const fmt = (n) => (Number(n) || 0).toLocaleString("fr-FR") + " " + DEVISE_ACTUELLE;
 const fmtNombre = (n) => (Number(n) || 0).toLocaleString("fr-FR"); // montant sans devise (pour les lignes de calcul détaillées)
+
+// ===== Informations de facture propres à chaque SDE (adresse, téléphones, moyens de paiement) =====
+// Seul le GIC historique « gic-aept » conserve ses textes d'origine tant qu'il n'a rien modifié.
+const ADRESSE_GIC_HISTORIQUE = "PK19 NGOMA ENTREE CHEFFERIE QUARTIER LAPAIX, DOUALA 3e — Tél: 692248128 / 651694772 / 693255612";
+const PAIEMENT_GIC_HISTORIQUE = "Payez sans frais via MOMO au 651694772 ou OM via #150*47*609594*montant#. Ligne suspendue après échéance.";
+const EXEMPLE_TELEPHONES = "6XX XXX XXX / 6XX XXX XXX";
+const EXEMPLE_PAIEMENT = "Payez sans frais via MoMo au 6XX XXX XXX ou Orange Money au 6XX XXX XXX. Ligne suspendue après échéance.";
+const estExemple = (t) => /XXX/i.test(String(t || ""));
+// Texte imprimable : vide si absent OU s'il contient encore l'exemple (« XXX ») → jamais de faux numéro sur une facture
+const texteFacture = (t) => { const s = String(t || "").trim(); return s && !estExemple(s) ? s : ""; };
 const fmtDate = (iso) => {
   if (!iso) return "—";
   const [y, m, d] = String(iso).split("-");
@@ -571,6 +581,7 @@ function buildDemoData() {
       nom: "GIC EAU VIVE",
       quartier: "Logpom, Douala",
       adresse: "Rue de l'Eau Vive, Logpom, Douala 5e — Tél: 699 000 111 / 677 000 222",
+      paiement: "Payez via MoMo au 677 000 222 ou Orange Money au 699 000 111. Ligne suspendue après échéance.",
       logo: "data:image/png;base64,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",
     },
     params: { prixUnitaire: 500, fraisEntretien: 500, libellesDepenses: ["Maintenance","Matériaux","Carburant","Réunion","Divers"] },
@@ -1206,9 +1217,12 @@ function ResetButton({ onResetData, nombreReleves, nombrePaiements }) {
   return null;
 }
 
-function ParametresTab({ gicInfo, params, abonnes, releves, paiements, libellesDepenses, onSaveGicInfo, onSaveTarifs, onSaveLibelles, onMergeAbonnes, onResetData }) {
+function ParametresTab({ gicInfo, gicEntete, params, abonnes, releves, paiements, libellesDepenses, onSaveGicInfo, onSaveTarifs, onSaveLibelles, onMergeAbonnes, onResetData }) {
   const [nom, setNom] = useState(gicInfo?.nom || "");
   const [logoPreview, setLogoPreview] = useState(gicInfo?.logo || "");
+  const [adresse, setAdresse] = useState(gicEntete?.adresse || "");
+  const [telephones, setTelephones] = useState(gicEntete?.telephones || "");
+  const [paiement, setPaiement] = useState(gicEntete?.paiement || "");
   const [prixUnitaire, setPrixUnitaire] = useState(params.prixUnitaire);
   const [fraisEntretien, setFraisEntretien] = useState(params.fraisEntretien);
   const [devise, setDevise] = useState(params.devise || "FCFA");
@@ -1248,7 +1262,21 @@ function ParametresTab({ gicInfo, params, abonnes, releves, paiements, libellesD
             </label>
           </div>
         </Field>
-        <BigButton icon={Save} onClick={() => onSaveGicInfo({ nom, logo: logoPreview })}>
+        <Field label="Adresse du SDE (imprimée sur les factures)">
+          <input className={inputCls} value={adresse} onChange={(e) => setAdresse(e.target.value)} placeholder="Quartier, ville" />
+        </Field>
+        <Field label="Téléphones du SDE">
+          <input className={inputCls} value={telephones} onChange={(e) => setTelephones(e.target.value)} placeholder="6XX XXX XXX / 6XX XXX XXX" />
+        </Field>
+        <Field label="Moyens de paiement (message imprimé sur chaque facture)">
+          <textarea className={inputCls} rows={3} value={paiement} onChange={(e) => setPaiement(e.target.value)} placeholder="Payez via MoMo au 6XX XXX XXX ou Orange Money au 6XX XXX XXX." />
+        </Field>
+        {(estExemple(telephones) || estExemple(paiement)) && (
+          <p className="text-[11px] mb-3 rounded-lg px-3 py-2" style={{ background: "#FFF4DC", color: "#8A5A00", border: "1px solid #E8A33D" }}>
+            ⚠️ Complétez vos informations de facture : remplacez les « XXX » par vos vrais numéros. Tant qu'il reste des « XXX », ces lignes ne sont pas imprimées sur les factures.
+          </p>
+        )}
+        <BigButton icon={Save} onClick={() => onSaveGicInfo({ nom, logo: logoPreview, adresse: adresse.trim(), telephones: telephones.trim(), paiement: paiement.trim() })}>
           Enregistrer l'identité
         </BigButton>
       </Card>
@@ -1785,7 +1813,18 @@ function App() {
 
   const gicNom = activeData.gicInfo?.nom || "Homs-Water Manager";
   const gicLogo = activeData.gicInfo?.logo || LOGO_DATA_URI;
-  const gicAdresse = activeData.gicInfo?.adresse || "PK19 NGOMA ENTREE CHEFFERIE QUARTIER LAPAIX, DOUALA 3e — Tél: 692248128 / 651694772 / 693255612";
+  // Informations de facture : propres à chaque SDE (jamais celles d'un autre)
+  const gicInfoActif = activeData.gicInfo || {};
+  const estGicHistorique = !isDemo && (!gicId || gicId === "gic-aept");
+  const gicTelephones = texteFacture(gicInfoActif.telephones);
+  const gicAdresseBase = gicInfoActif.adresse || (estGicHistorique ? ADRESSE_GIC_HISTORIQUE : "");
+  const gicAdresse = [gicAdresseBase, gicTelephones ? "Tél: " + gicTelephones : ""].filter(Boolean).join(" — ");
+  const gicPaiement = texteFacture(gicInfoActif.paiement) || (estGicHistorique ? PAIEMENT_GIC_HISTORIQUE : "");
+  const enteteInit = {
+    adresse: gicInfoActif.adresse || (estGicHistorique ? ADRESSE_GIC_HISTORIQUE : ""),
+    telephones: gicInfoActif.telephones ?? (estGicHistorique ? "" : EXEMPLE_TELEPHONES),
+    paiement: gicInfoActif.paiement ?? (estGicHistorique ? PAIEMENT_GIC_HISTORIQUE : EXEMPLE_PAIEMENT),
+  };
   const isDev = role === "administrateur";
   const libellesDepenses = (activeData.params.libellesDepenses && activeData.params.libellesDepenses.length) ? activeData.params.libellesDepenses : LIBELLES_DEPENSES_DEFAUT;
   const canManage = role === "administrateur";
@@ -2236,13 +2275,14 @@ function App() {
           {tab === "parametres" && isDev && (
             <ParametresTab
               gicInfo={activeData.gicInfo}
+              gicEntete={enteteInit}
               params={activeData.params}
               abonnes={activeData.abonnes}
               releves={activeData.releves}
               paiements={activeData.paiements}
               libellesDepenses={libellesDepenses}
               onSaveGicInfo={(gicInfo) => {
-                persist({ ...activeData, gicInfo });
+                persist({ ...activeData, gicInfo: { ...(activeData.gicInfo || {}), ...gicInfo } });
                 showToast("Informations du SDE mises à jour");
               }}
               onSaveTarifs={(params) => {
@@ -2358,7 +2398,7 @@ function App() {
               />
             )}
             {printTarget.type === "factures" &&
-              printTarget.list.map(({ r, a }) => <FacturePrint key={r.id} r={r} a={a} gicNom={gicNom} gicLogo={gicLogo} />)}
+              printTarget.list.map(({ r, a }) => <FacturePrint key={r.id} r={r} a={a} gicNom={gicNom} gicLogo={gicLogo} gicAdresse={gicAdresse} gicPaiement={gicPaiement} />)}
             {printTarget.type === "fiche" && (
               <FicheSuiviPrint periode={periode} rows={ficheSuiviRows} totaux={ficheSuiviTotaux} gicNom={gicNom} gicLogo={gicLogo} gicAdresse={gicAdresse} />
             )}
@@ -4099,7 +4139,7 @@ function BilanPrint({ periode, gicNom, gicLogo, gicAdresse, totalFacture, totalE
         <img src={gicLogo || LOGO_DATA_URI} alt="Logo Homs-Water Manager" style={{ width: 52, height: 52, objectFit: "contain" }} />
         <div>
           <h1 style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 20, color: "#0F5C6B", margin: 0 }}>{gicNom || "GIC ACTION D'ENTRAIDE POUR TOUS"}</h1>
-          <p style={{ fontSize: 11, margin: "4px 0 0" }}>{gicAdresse || "PK19 NGOMA ENTREE CHEFFERIE QUARTIER LAPAIX, DOUALA 3e — Tél: 692248128 / 651694772 / 693255612"}</p>
+          {gicAdresse && <p style={{ fontSize: 11, margin: "4px 0 0" }}>{gicAdresse}</p>}
           <h2 style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 15, marginTop: 6 }}>Bilan financier mensuel — {periodeLabel(periode)}</h2>
         </div>
       </div>
@@ -4158,7 +4198,7 @@ function PrintRow({ label, value, strong, big }) {
 }
 
 // ================= PRINT: FACTURE =================
-function FacturePrint({ r, a, gicNom, gicLogo }) {
+function FacturePrint({ r, a, gicNom, gicLogo, gicAdresse, gicPaiement }) {
   const style = { fontFamily: "Manrope, sans-serif", color: "#14232B" };
   const InfoBlock = () => (
     <>
@@ -4166,7 +4206,7 @@ function FacturePrint({ r, a, gicNom, gicLogo }) {
         <img src={gicLogo || LOGO_DATA_URI} alt="Logo Homs-Water Manager" style={{ width: 34, height: 34, objectFit: "contain" }} />
         <div>
           <h1 style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 14, color: "#0F5C6B", margin: 0 }}>{gicNom || "GIC ACTION D'ENTRAIDE POUR TOUS"}</h1>
-          <p style={{ fontSize: 8.5, margin: "2px 0 0" }}>PK19 NGOMA ENTREE CHEFFERIE QUARTIER LAPAIX, DOUALA 3e — Tél: 692248128 / 651694772 / 693255612</p>
+          {gicAdresse && <p style={{ fontSize: 8.5, margin: "2px 0 0" }}>{gicAdresse}</p>}
         </div>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 6 }}>
@@ -4196,9 +4236,11 @@ function FacturePrint({ r, a, gicNom, gicLogo }) {
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         <p style={{ fontSize: 10, fontWeight: 700, color: "#E8A33D", marginBottom: 4 }}>ORIGINAL CLIENT</p>
         <InfoBlock />
-        <div style={{ border: "1.5px solid #E8A33D", borderRadius: 6, padding: 8, fontSize: 9.5, marginBottom: 8 }}>
-          <b>AVERTISSEMENT :</b> Payez sans frais via MOMO au 651694772 ou OM via #150*47*609594*montant#. Ligne suspendue après échéance.
-        </div>
+        {gicPaiement && (
+          <div style={{ border: "1.5px solid #E8A33D", borderRadius: 6, padding: 8, fontSize: 9.5, marginBottom: 8 }}>
+            <b>AVERTISSEMENT :</b> {gicPaiement}
+          </div>
+        )}
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10, marginBottom: 8 }}>
           <tbody>
             <tr><td style={tdL}>Montant versé</td><td style={{ ...tdR, borderBottom: "1px solid #999" }}>&nbsp;</td></tr>
@@ -4525,7 +4567,7 @@ function FicheEnTete({ gicNom, gicLogo, gicAdresse, titre, sousTitre }) {
         <img src={gicLogo || LOGO_DATA_URI} alt="Logo Homs-Water Manager" style={{ width: 26, height: 26, objectFit: "contain" }} />
         <div>
           <h1 style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 12, color: "#0F5C6B", margin: 0 }}>{gicNom || "GIC ACTION D'ENTRAIDE POUR TOUS"}</h1>
-          <p style={{ fontSize: 7, margin: "1px 0 0" }}>{gicAdresse || "PK19 NGOMA ENTREE CHEFFERIE QUARTIER LAPAIX, DOUALA 3e — Tél: 692248128 / 651694772 / 693255612"}</p>
+          {gicAdresse && <p style={{ fontSize: 7, margin: "1px 0 0" }}>{gicAdresse}</p>}
         </div>
       </div>
       <h2 style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 11, margin: "0 0 1px" }}>{titre}</h2>
