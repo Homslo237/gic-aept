@@ -699,6 +699,10 @@ function RegisterScreen({ auth, db, onRegistered }) {
       // NB : le parrain n'est pas un SDE, c'est un affilié indépendant (collection "affiliates")
       const parrain = await window.Affiliation.trouverParrain(db, form.codeParrain);
 
+      // 1ter. Fiche « propriétaire » de ce SDE (gics/{gicId}) : prouve que CE compte a créé cet identifiant.
+      //       Utilisée par les règles de sécurité pour isoler les données de chaque SDE.
+      await db.collection("gics").doc(gicId).set({ ownerUid: uid, createdAt: new Date().toISOString() });
+
       // 2. Initialiser les données SDE dans gics/{gicId}/data/main (EN PREMIER : ainsi, quand le profil apparaît, les données existent déjà)
       await db.collection("gics").doc(gicId).collection("data").doc("main").set({
         abonnes: [],
