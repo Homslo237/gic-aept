@@ -358,6 +358,60 @@ const EXEMPLE_PAIEMENT = "Payez sans frais via MoMo au 6XX XXX XXX ou Orange Mon
 const estExemple = (t) => /XXX/i.test(String(t || ""));
 // Texte imprimable : vide si absent OU s'il contient encore l'exemple (« XXX ») → jamais de faux numéro sur une facture
 const texteFacture = (t) => { const s = String(t || "").trim(); return s && !estExemple(s) ? s : ""; };
+
+// ===== Commande d'un logo / d'une identité visuelle à l'équipe Homs-Water Manager =====
+const EMAIL_OFFICIEL = "contact@homswater.com";
+const WHATSAPP_OFFICIEL = "237679437377";
+const lienCommandeLogoMail = (nomSde) =>
+  "mailto:" + EMAIL_OFFICIEL +
+  "?subject=" + encodeURIComponent("Demande de logo et d'identité visuelle") +
+  "&body=" + encodeURIComponent(
+    "Bonjour,\n\nMon SDE : " + (nomSde || "") +
+    "\nJe souhaite commander un logo et une identité visuelle (en-tête, factures, documents).\n\nMa ville : \nMon numéro WhatsApp : \n\nMerci.");
+const lienCommandeLogoWhatsApp = (nomSde) =>
+  "https://wa.me/" + WHATSAPP_OFFICIEL + "?text=" +
+  encodeURIComponent("Bonjour, je gère le SDE « " + (nomSde || "") + " ». Je souhaite commander un logo et une identité visuelle professionnelle (en-tête, factures, documents).");
+
+// ===== Logo : réduction avant enregistrement =====
+// Le logo est stocké dans le MÊME document que toutes les données du SDE (limite Firestore : 1 Mio).
+// On le réduit donc à 256 px max (PNG, transparence conservée) ; si c'est encore lourd, JPEG sur fond blanc.
+const LOGO_MAX_PX = 256;
+const LOGO_MAX_CHARS = 90000; // ≈ 65 Ko
+function compresserLogo(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("lecture"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("image"));
+      img.onload = () => {
+        try {
+          let w = img.naturalWidth || img.width;
+          let h = img.naturalHeight || img.height;
+          if (!w || !h) { reject(new Error("image")); return; }
+          const ech = Math.min(1, LOGO_MAX_PX / Math.max(w, h));
+          w = Math.max(1, Math.round(w * ech));
+          h = Math.max(1, Math.round(h * ech));
+          const dessiner = (fond, type, qualite, cw, ch) => {
+            const c = document.createElement("canvas");
+            c.width = cw; c.height = ch;
+            const ctx = c.getContext("2d");
+            if (fond) { ctx.fillStyle = fond; ctx.fillRect(0, 0, cw, ch); }
+            ctx.drawImage(img, 0, 0, cw, ch);
+            return c.toDataURL(type, qualite);
+          };
+          let out = dessiner(null, "image/png", undefined, w, h);
+          if (out.length > LOGO_MAX_CHARS) out = dessiner("#ffffff", "image/jpeg", 0.85, w, h);
+          if (out.length > LOGO_MAX_CHARS) out = dessiner("#ffffff", "image/jpeg", 0.75, Math.max(1, Math.round(w * 0.6)), Math.max(1, Math.round(h * 0.6)));
+          if (out.length > LOGO_MAX_CHARS * 2) { reject(new Error("trop gros")); return; }
+          resolve(out);
+        } catch (err) { reject(err); }
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 const fmtDate = (iso) => {
   if (!iso) return "—";
   const [y, m, d] = String(iso).split("-");
@@ -1228,12 +1282,16 @@ function ParametresTab({ gicInfo, gicEntete, params, abonnes, releves, paiements
   const [devise, setDevise] = useState(params.devise || "FCFA");
   const [libellesList, setLibellesList] = useState(libellesDepenses);
 
-  const handleLogoUpload = (e) => {
-    const file = e.target.files && e.target.files[0];
+  const handleLogoUpload = async (e) => {
+    const input = e.target;
+    const file = input.files && input.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setLogoPreview(reader.result);
-    reader.readAsDataURL(file);
+    try {
+      setLogoPreview(await compresserLogo(file));
+    } catch (err) {
+      alert("Ce fichier n'est pas une image lisible (formats conseillés : PNG ou JPG). Choisissez une autre image.");
+    }
+    try { input.value = ""; } catch (e2) {} // permet de rechoisir le même fichier
   };
 
   const updateLibelle = (i, val) => {
@@ -1260,6 +1318,19 @@ function ParametresTab({ gicInfo, gicEntete, params, abonnes, releves, paiements
               <Upload size={16} /> Changer le logo
               <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} style={{ display: "none" }} />
             </label>
+          </div>
+          <div className="rounded-xl p-3 mt-1" style={{ background: "#F0F6F5", border: "1px solid #E2E8E7" }}>
+            <p className="text-[12px] text-[#0F5C6B] mb-2">
+              <strong>Pas encore de logo ni d'identité visuelle ?</strong> Commandez-les à l'équipe Homs-Water Manager : logo, couleurs et modèles de documents professionnels pour votre SDE.
+            </p>
+            <div className="flex gap-2">
+              <a href={lienCommandeLogoMail(nom)} className="flex-1 text-center text-[13px] font-700 rounded-xl py-2.5" style={{ background: "#0F5C6B", color: "#fff", textDecoration: "none" }}>
+                ✉️ Par e-mail
+              </a>
+              <a href={lienCommandeLogoWhatsApp(nom)} target="_blank" rel="noopener noreferrer" className="flex-1 text-center text-[13px] font-700 rounded-xl py-2.5" style={{ background: "#25D366", color: "#fff", textDecoration: "none" }}>
+                💬 Par WhatsApp
+              </a>
+            </div>
           </div>
         </Field>
         <Field label="Adresse du SDE (imprimée sur les factures)">
@@ -1315,15 +1386,6 @@ function ParametresTab({ gicInfo, gicEntete, params, abonnes, releves, paiements
         <BigButton icon={Save} onClick={() => onSaveLibelles(libellesList.map((l) => l.trim()).filter(Boolean))}>
           Enregistrer les libellés
         </BigButton>
-      </Card>
-
-      <Card className="mb-4" style={{ border: "2px solid #C0392B" }}>
-        <SectionTitle>⚠️ Zone de réinitialisation</SectionTitle>
-        <p className="text-[11px] text-[#5B7070] mb-3">
-          Cette action supprime définitivement <strong>tous les relevés, paiements et dépenses</strong> enregistrés dans l'application.
-          Les abonnés et les réglages sont conservés. Cette opération est irréversible.
-        </p>
-        <ResetButton onResetData={onResetData} nombreReleves={releves.length} nombrePaiements={paiements.length} />
       </Card>
 
       <p className="text-[11px] text-white/85 text-center" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.35)" }}>
@@ -1463,6 +1525,8 @@ function App() {
   DEVISE_ACTUELLE = (activeData && activeData.params && activeData.params.devise) || "FCFA";
   const [roleChecked, setRoleChecked] = useState(false);
   const [syncError, setSyncError] = useState("");
+  const [saveError, setSaveError] = useState(""); // "" | "network" | "refused" | "toolarge" — bandeau permanent « non enregistré »
+  const [dataBytes, setDataBytes] = useState(0); // taille approximative des données du SDE (limite Firestore : 1 Mio)
 
   // ---- Session (rôle) : dérivée du compte Firebase réellement connecté ----
   useEffect(() => {
@@ -1605,7 +1669,9 @@ function App() {
             gicInfo: { ...DEFAULT_DATA.gicInfo, ...(remote.gicInfo || {}) },
           });
           try {
-            window.localStorage.setItem(`sde-data-${gicId || "gic-aept"}-v1`, JSON.stringify(remote));
+            const jsonRemote = JSON.stringify(remote);
+            setDataBytes(jsonRemote.length);
+            window.localStorage.setItem(`sde-data-${gicId || "gic-aept"}-v1`, jsonRemote);
           } catch (e) {}
         } else if (role === "administrateur" && !seeding) {
           // Première utilisation : on amorce Firestore avec les données déjà présentes sur ce téléphone.
@@ -1658,13 +1724,16 @@ function App() {
     setData(nextData);
     setSaving(true);
     try {
-      window.localStorage.setItem(`sde-data-${gicId || "gic-aept"}-v1`, JSON.stringify(nextData));
+      const json = JSON.stringify(nextData);
+      setDataBytes(json.length);
+      window.localStorage.setItem(`sde-data-${gicId || "gic-aept"}-v1`, json);
     } catch (e) {
       // cache local indisponible : Firestore reste la source de vérité
     }
     if (db) {
       getDocRef(db, gicId)
         .set(nextData)
+        .then(() => { try { setSaveError(""); } catch (e) {} })
         .catch((e) => {
           const denied = e && (e.code === "permission-denied" || /insufficient permissions/i.test(e.message || ""));
           const msg = denied
@@ -1672,6 +1741,10 @@ function App() {
             : "⚠️ Échec de l'enregistrement en ligne (" + ((e && e.message) || e) + "). Vérifiez votre connexion internet.";
           setToast(msg);
           setTimeout(() => setToast(""), 9000);
+          try {
+            const tooLarge = e && (e.code === "invalid-argument" || /exceeds the maximum|too large|longer than|payload/i.test(e.message || ""));
+            setSaveError(denied ? "refused" : tooLarge ? "toolarge" : "network");
+          } catch (e2) {}
         })
         .finally(() => setTimeout(() => setSaving(false), 150));
     } else {
@@ -1682,6 +1755,24 @@ function App() {
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(""), 5000);
+  };
+
+  // Bandeau « non enregistré » : nouvel essai d'enregistrement + copie de secours sur le téléphone
+  const reessayerEnregistrement = () => { persist(data); };
+  const telechargerCopie = () => {
+    try {
+      const blob = new Blob([JSON.stringify(data, null, 1)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "sauvegarde-" + String(gicNom || "sde").replace(/[^a-z0-9]+/gi, "-").toLowerCase() + "-" + todayISO() + ".json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (e) {
+      showToast("Impossible de créer la copie de secours.");
+    }
   };
 
   // Import générique : à partir de lignes collées depuis Excel/WhatsApp (voir composant ImportDonnees).
@@ -1814,6 +1905,7 @@ function App() {
   const gicNom = activeData.gicInfo?.nom || "Homs-Water Manager";
   const gicLogo = activeData.gicInfo?.logo || LOGO_DATA_URI;
   // Informations de facture : propres à chaque SDE (jamais celles d'un autre)
+  const pctDonnees = Math.min(999, Math.round((dataBytes / 1048576) * 100)); // part de la limite d'un document Firestore
   const gicInfoActif = activeData.gicInfo || {};
   const estGicHistorique = !isDemo && (!gicId || gicId === "gic-aept");
   const gicTelephones = texteFacture(gicInfoActif.telephones);
@@ -2067,6 +2159,32 @@ function App() {
           <div className="max-w-xl mx-auto px-4 mt-3">
             <div className="bg-[#FCE4E1] text-[#C0392B] text-[12px] rounded-xl px-3 py-2">
               ⚠️ Synchronisation impossible : {syncError}. Les données affichées peuvent ne pas être à jour.
+            </div>
+          </div>
+        )}
+
+        {saveError && !isDemo && (
+          <div className="max-w-xl mx-auto px-4 mt-3">
+            <div className="text-[12px] rounded-xl px-3 py-2" style={{ background: "#FCE4E1", color: "#C0392B", border: "1px solid #C0392B" }}>
+              <strong>⚠️ Vos dernières modifications ne sont pas enregistrées en ligne.</strong>{" "}
+              {saveError === "toolarge"
+                ? "Vos données sont trop volumineuses (logo trop lourd ou trop d'historique) : changez le logo dans Réglages ou contactez Homs-Water pour archiver. "
+                : saveError === "refused"
+                ? "L'enregistrement est refusé pour ce compte : contactez Homs-Water. "
+                : "Vérifiez votre connexion internet. "}
+              Avant de fermer l'application, téléchargez une copie.
+              <div className="flex gap-2 mt-2">
+                <button type="button" onClick={reessayerEnregistrement} className="flex-1 rounded-lg py-2 text-[12px] font-700" style={{ background: "#C0392B", color: "#fff" }}>Réessayer</button>
+                <button type="button" onClick={telechargerCopie} className="flex-1 rounded-lg py-2 text-[12px] font-700" style={{ background: "#fff", color: "#C0392B", border: "1px solid #C0392B" }}>Télécharger une copie</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!saveError && !isDemo && pctDonnees >= 70 && (
+          <div className="max-w-xl mx-auto px-4 mt-3">
+            <div className="text-[12px] rounded-xl px-3 py-2" style={pctDonnees >= 90 ? { background: "#FCE4E1", color: "#C0392B", border: "1px solid #C0392B" } : { background: "#FFF4DC", color: "#8A5A00", border: "1px solid #E8A33D" }}>
+              📦 Vos données occupent <strong>{pctDonnees} %</strong> de l'espace disponible.{pctDonnees >= 90 ? " Le blocage des enregistrements est proche : " : " "}Contactez Homs-Water pour archiver votre historique (WhatsApp +237 679 437 377).
             </div>
           </div>
         )}
