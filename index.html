@@ -1271,7 +1271,7 @@ function ResetButton({ onResetData, nombreReleves, nombrePaiements }) {
   return null;
 }
 
-function ParametresTab({ gicInfo, gicEntete, params, abonnes, releves, paiements, libellesDepenses, onSaveGicInfo, onSaveTarifs, onSaveLibelles, onMergeAbonnes, onResetData }) {
+function ParametresTab({ gicInfo, gicEntete, planInfo, params, abonnes, releves, paiements, libellesDepenses, onSaveGicInfo, onSaveTarifs, onSaveLibelles, onMergeAbonnes, onResetData }) {
   const [nom, setNom] = useState(gicInfo?.nom || "");
   const [logoPreview, setLogoPreview] = useState(gicInfo?.logo || "");
   const [adresse, setAdresse] = useState(gicEntete?.adresse || "");
@@ -1303,6 +1303,18 @@ function ParametresTab({ gicInfo, gicEntete, params, abonnes, releves, paiements
   return (
     <div>
       <SectionTitle light>Réglages (Administrateur)</SectionTitle>
+
+      {planInfo && (
+        <Card className="mb-4">
+          <SectionTitle>Votre abonnement</SectionTitle>
+          <p className="text-[13px] text-[#14232B]">
+            Plan <strong>{planInfo.label}</strong> : {planInfo.limite === Infinity ? "abonnés illimités" : `${planInfo.limite} abonnés maximum`}.
+          </p>
+          <p className="text-[12px] text-[#5B7070] mt-1">
+            Abonnés enregistrés : {planInfo.nbAbonnes}{planInfo.limite === Infinity ? "" : ` / ${planInfo.limite}`}. Pour changer de plan, contactez Homs-Water (WhatsApp +237 679 437 377).
+          </p>
+        </Card>
+      )}
 
       <DoublonsAbonnes abonnes={abonnes} releves={releves} paiements={paiements} onMerge={onMergeAbonnes} />
 
@@ -1709,6 +1721,17 @@ function App() {
       () => setPlanConfig(null) // en cas d'erreur, on retombe sur les valeurs de secours
     );
     return () => unsub();
+  }, [role, isDemo, db]);
+
+  // Suivi EN DIRECT du plan du SDE (profil users/{uid}) : un changement fait depuis la console admin
+  // s'applique sans reconnexion. Seul le PLAN est mis à jour (jamais le rôle ni l'identifiant du SDE).
+  useEffect(() => {
+    if (!role || isDemo || !db || !auth || !auth.currentUser) return;
+    const unsubPlan = db.collection("users").doc(auth.currentUser.uid).onSnapshot(
+      (snap) => { try { if (snap && snap.exists) setPlan((snap.data() || {}).plan || "starter"); } catch (e) {} },
+      () => {} // erreur : on garde le plan déjà chargé
+    );
+    return () => { try { unsubPlan(); } catch (e) {} };
   }, [role, isDemo, db]);
 
   // Limite et libellé du plan actuel : config Firebase en priorité, sinon valeurs de secours.
@@ -2394,6 +2417,7 @@ function App() {
             <ParametresTab
               gicInfo={activeData.gicInfo}
               gicEntete={enteteInit}
+              planInfo={isDemo ? null : { label: labelPlanActuel, limite: limitePlanActuel, nbAbonnes: activeData.abonnes.length }}
               params={activeData.params}
               abonnes={activeData.abonnes}
               releves={activeData.releves}
