@@ -373,6 +373,8 @@ const FONCTION_PLAN_MIN = {
   messageGroupe: "pro",
 };
 const planAutorise = (plan, fonction) => (PLAN_RANG[plan] ?? 0) >= (PLAN_RANG[FONCTION_PLAN_MIN[fonction]] ?? 0);
+const MESSAGE_LECTURE_SEULE =
+  "📖 Période gratuite terminée : votre espace est en consultation seule. Vos données sont conservées. Contactez Homs-Water (WhatsApp +237 679 437 377) pour passer à un plan payant.";
 const messageVerrou = (fonction) =>
   "🔒 Cette fonction est réservée au plan " + (PLAN_LABELS[FONCTION_PLAN_MIN[fonction]] || "supérieur") +
   ". Contactez Homs-Water (WhatsApp +237 679 437 377) pour passer au plan supérieur.";
@@ -1331,6 +1333,11 @@ function ParametresTab({ gicInfo, gicEntete, planInfo, params, abonnes, releves,
           <p className="text-[12px] text-[#5B7070] mt-1">
             Abonnés enregistrés : {planInfo.nbAbonnes}{planInfo.limite === Infinity ? "" : ` / ${planInfo.limite}`}. Pour changer de plan, contactez Homs-Water (WhatsApp +237 679 437 377).
           </p>
+          {planInfo.finGratuite && (
+            <p className="text-[12px] mt-1" style={{ color: planInfo.lectureSeule ? "#C0392B" : "#8A5A00" }}>
+              {planInfo.lectureSeule ? "Période gratuite terminée le " : "Période gratuite : fin le "}<strong>{planInfo.finGratuite}</strong>{planInfo.lectureSeule ? " : votre espace est en consultation seule." : "."}
+            </p>
+          )}
         </Card>
       )}
 
@@ -1516,6 +1523,8 @@ function App() {
   const previewRef = useRef(null);
   const [role, setRole] = useState(null);
   const [plan, setPlan] = useState("starter");
+  const [profilCreatedAt, setProfilCreatedAt] = useState(""); // date d'inscription (fin de la période gratuite du Starter)
+  const lectureSeuleRef = useRef(false); // lu par persist (évite une dépendance circulaire)
   const [planConfig, setPlanConfig] = useState(null); // null tant que non chargé -> on utilise les valeurs de secours
   const [isDemo, setIsDemo] = useState(false);
 
@@ -1585,6 +1594,7 @@ function App() {
             setRole(resolvedRole);
             setGicId(resolvedGicId);
             setPlan(profile.plan || "starter");
+            setProfilCreatedAt(profile.createdAt || "");
           } else if (EMAIL_TO_ROLE[user.email]) {
             // Ancien compte GIC AEPT sans profil users/ → rétro-compatibilité
             const defaultGicId = "gic-aept";
@@ -1746,7 +1756,7 @@ function App() {
   useEffect(() => {
     if (!role || isDemo || !db || !auth || !auth.currentUser) return;
     const unsubPlan = db.collection("users").doc(auth.currentUser.uid).onSnapshot(
-      (snap) => { try { if (snap && snap.exists) setPlan((snap.data() || {}).plan || "starter"); } catch (e) {} },
+      (snap) => { try { if (snap && snap.exists) { const pr = snap.data() || {}; setPlan(pr.plan || "starter"); setProfilCreatedAt(pr.createdAt || ""); } } catch (e) {} },
       () => {} // erreur : on garde le plan déjà chargé
     );
     return () => { try { unsubPlan(); } catch (e) {} };
@@ -1762,6 +1772,12 @@ function App() {
 
   const persist = useCallback((nextData) => {
     if (isDemo) { setDemoData(nextData); return; }
+    // Période gratuite terminée : consultation seule, aucun enregistrement (les données sont conservées)
+    if (lectureSeuleRef.current) {
+      setToast(MESSAGE_LECTURE_SEULE);
+      setTimeout(() => setToast(""), 9000);
+      return;
+    }
     setData(nextData);
     setSaving(true);
     try {
@@ -1969,10 +1985,29 @@ function App() {
   const verrous = Object.fromEntries(Object.keys(FONCTION_PLAN_MIN).map((f) => [f, !accesTotal && !planAutorise(plan, f)]));
   const refuserFonction = (fonction) => showToast(messageVerrou(fonction));
   const garde = (fonction, action) => () => (verrous[fonction] ? refuserFonction(fonction) : action());
+
+  // ===== Période gratuite du Starter : fin = date d'inscription + durée réglée dans la console =====
+  // Durée absente / illimitée, date d'inscription absente ou illisible, horloge du téléphone incohérente,
+  // GIC historique, démonstration, plan payant : JAMAIS de blocage.
+  const dureeStarterMois = Number(planConfig && planConfig.starter && planConfig.starter.dureeMois) || 0;
+  const finGratuite = (() => {
+    if (plan !== "starter" || accesTotal || !(dureeStarterMois > 0) || !profilCreatedAt) return null;
+    const debut = new Date(profilCreatedAt);
+    if (isNaN(debut.getTime())) return null;
+    const fin = new Date(debut.getTime());
+    fin.setMonth(fin.getMonth() + dureeStarterMois);
+    return { debut, fin };
+  })();
+  const maintenant = new Date();
+  const joursRestantsGratuit = finGratuite && maintenant.getTime() >= finGratuite.debut.getTime()
+    ? Math.ceil((finGratuite.fin.getTime() - maintenant.getTime()) / 86400000) : null;
+  const lectureSeule = joursRestantsGratuit !== null && joursRestantsGratuit <= 0;
+  const avertissementFinGratuit = joursRestantsGratuit !== null && joursRestantsGratuit > 0 && joursRestantsGratuit <= 30;
+  lectureSeuleRef.current = lectureSeule;
   const isDev = role === "administrateur";
   const libellesDepenses = (activeData.params.libellesDepenses && activeData.params.libellesDepenses.length) ? activeData.params.libellesDepenses : LIBELLES_DEPENSES_DEFAUT;
-  const canManage = role === "administrateur";
-  const canAdd = role === "administrateur" || role === "secretaire";
+  const canManage = role === "administrateur" && !lectureSeule;
+  const canAdd = (role === "administrateur" || role === "secretaire") && !lectureSeule;
 
   const zones = useMemo(() => {
     const fromAbonnes = Array.from(new Set(activeData.abonnes.map((a) => a.zone).filter(Boolean)));
@@ -2241,6 +2276,22 @@ function App() {
           </div>
         )}
 
+        {lectureSeule && !isDemo && (
+          <div className="max-w-xl mx-auto px-4 mt-3">
+            <div className="text-[12px] rounded-xl px-3 py-2" style={{ background: "#FCE4E1", color: "#C0392B", border: "1px solid #C0392B" }}>
+              <strong>📖 Période gratuite terminée.</strong> Votre espace est en <strong>consultation seule</strong> : vous pouvez tout voir, imprimer et exporter, mais plus rien ajouter ni modifier. Vos données sont conservées. Contactez Homs-Water (WhatsApp +237 679 437 377) pour passer à un plan payant.
+            </div>
+          </div>
+        )}
+
+        {avertissementFinGratuit && !isDemo && (
+          <div className="max-w-xl mx-auto px-4 mt-3">
+            <div className="text-[12px] rounded-xl px-3 py-2" style={{ background: "#FFF4DC", color: "#8A5A00", border: "1px solid #E8A33D" }}>
+              ⏳ Votre période gratuite se termine le <strong>{finGratuite.fin.toLocaleDateString("fr-FR")}</strong> (dans {joursRestantsGratuit} jour{joursRestantsGratuit > 1 ? "s" : ""}). Ensuite, votre espace passera en consultation seule. Contactez Homs-Water (WhatsApp +237 679 437 377) pour passer à un plan payant.
+            </div>
+          </div>
+        )}
+
         <main className="px-4 pt-4 max-w-xl mx-auto">
           {tab === "dashboard" && (
             <Dashboard
@@ -2451,7 +2502,7 @@ function App() {
             <ParametresTab
               gicInfo={activeData.gicInfo}
               gicEntete={enteteInit}
-              planInfo={isDemo ? null : { label: labelPlanActuel, limite: limitePlanActuel, nbAbonnes: activeData.abonnes.length }}
+              planInfo={isDemo ? null : { label: labelPlanActuel, limite: limitePlanActuel, nbAbonnes: activeData.abonnes.length, finGratuite: finGratuite ? finGratuite.fin.toLocaleDateString("fr-FR") : "", lectureSeule }}
               params={activeData.params}
               abonnes={activeData.abonnes}
               releves={activeData.releves}

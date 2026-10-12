@@ -770,7 +770,7 @@ let sdesData = [];
 let planConfigCache = null; // rempli par loadPlanConfig() ; tant que null, on utilise les valeurs de secours
 
 const PLAN_FALLBACK = {
-  starter:   { label: "Gratuit",        prix: 0,     limite: 10 },
+  starter:   { label: "Gratuit",        prix: 0,     limite: 10, dureeMois: null },
   essentiel: { label: "Essentiel · 5k", prix: 5000,  limite: 50 },
   pro:       { label: "Pro · 10k",      prix: 10000, limite: 300 },
   premium:   { label: "Premium · 15k",  prix: 15000, limite: null },
@@ -798,6 +798,7 @@ function renderTarifs() {
       ${ordre.map(cle => {
         const p = Object.assign({}, PLAN_FALLBACK[cle], config[cle] || {});
         const illimite = p.limite === null || p.limite === undefined;
+        const dureeIllimitee = !(Number(p.dureeMois) > 0);
         return `
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px;border:1px solid var(--border2);border-radius:10px;">
           <div style="min-width:90px;font-weight:800;color:var(--text);">${cle === "starter" ? "Starter" : cle === "essentiel" ? "Essentiel" : cle === "pro" ? "Pro" : "Premium"}</div>
@@ -813,6 +814,15 @@ function renderTarifs() {
               placeholder="Nb abonnés max"
               style="display:block;margin-top:4px;width:120px;padding:8px;border-radius:8px;border:1px solid var(--border2);background:rgba(255,255,255,0.04);color:var(--text);"/>
           </label>
+          ${cle === "starter" ? `
+          <label style="font-size:11px;color:var(--muted);">
+            <span style="display:flex;align-items:center;gap:6px;">
+              <input type="checkbox" id="tarif-duree-illimitee" ${dureeIllimitee ? "checked" : ""} onchange="toggleDureeIllimitee()"/> Durée illimitée
+            </span>
+            <input type="number" min="1" step="1" id="tarif-duree-starter" value="${dureeIllimitee ? "" : p.dureeMois}" ${dureeIllimitee ? "disabled" : ""}
+              placeholder="Mois gratuits (ex. 6)"
+              style="display:block;margin-top:4px;width:120px;padding:8px;border-radius:8px;border:1px solid var(--border2);background:rgba(255,255,255,0.04);color:var(--text);"/>
+          </label>` : ""}
         </div>`;
       }).join("")}
       <button class="btn-pay" style="align-self:flex-start;padding:10px 20px;" onclick="enregistrerTarifs()">💾 Enregistrer les tarifs</button>
@@ -822,6 +832,13 @@ function renderTarifs() {
 function toggleIllimite(cle) {
   const cb = document.getElementById(`tarif-illimite-${cle}`);
   const input = document.getElementById(`tarif-limite-${cle}`);
+  input.disabled = cb.checked;
+  if (cb.checked) input.value = "";
+}
+
+function toggleDureeIllimitee() {
+  const cb = document.getElementById("tarif-duree-illimitee");
+  const input = document.getElementById("tarif-duree-starter");
   input.disabled = cb.checked;
   if (cb.checked) input.value = "";
 }
@@ -837,6 +854,12 @@ async function enregistrerTarifs() {
     const limiteVal = document.getElementById(`tarif-limite-${cle}`).value;
     const limite = illimite ? null : (Number(limiteVal) || 1);
     nouvelleConfig[cle] = { label: labels[cle], prix, limite };
+    if (cle === "starter") {
+      // Durée de la période gratuite : null = illimitée (aucun SDE bloqué)
+      const dureeIllimitee = document.getElementById("tarif-duree-illimitee").checked;
+      const dureeVal = document.getElementById("tarif-duree-starter").value;
+      nouvelleConfig[cle].dureeMois = dureeIllimitee ? null : (Math.round(Number(dureeVal)) || 6);
+    }
   }
 
   try {
@@ -937,6 +960,21 @@ function animCount(id, target) {
   requestAnimationFrame(step);
 }
 
+// Fin de la période gratuite d'un SDE Starter (inscription + durée réglée dans la grille tarifaire)
+function finGratuiteCell(s) {
+  const duree = Number(planConfigCache?.starter?.dureeMois) || 0;
+  if (s.plan !== "starter" || s.gicId === "gic-aept" || !(duree > 0) || !s.createdAt) return "—";
+  const debut = new Date(s.createdAt);
+  if (isNaN(debut.getTime())) return "—";
+  const fin = new Date(debut.getTime());
+  fin.setMonth(fin.getMonth() + duree);
+  const jours = Math.ceil((fin.getTime() - Date.now()) / 86400000);
+  const d = fin.toLocaleDateString("fr-FR");
+  if (jours <= 0) return `${d} <span style="color:#E05252;font-weight:700;">⛔ dépassée</span>`;
+  if (jours <= 30) return `${d} <span style="color:#E8A33D;font-weight:700;">⏳ ${jours} j</span>`;
+  return `${d} <span class="td-muted">(${jours} j)</span>`;
+}
+
 function renderTable(sdes) {
   const cnt = document.getElementById("table-count");
   cnt.textContent = sdes.length + " SDE" + (sdes.length > 1 ? "s" : "");
@@ -958,7 +996,7 @@ function renderTable(sdes) {
     <table>
       <thead><tr>
         <th>SDE</th><th>Email</th><th>Plan</th><th>Abonnés</th>
-        <th>Inscrite le</th><th>Dernière activité</th><th>Action</th>
+        <th>Inscrite le</th><th>Fin de gratuité</th><th>Dernière activité</th><th>Action</th>
       </tr></thead>
       <tbody>
         ${sdes.map((s,i) => `
@@ -978,6 +1016,7 @@ function renderTable(sdes) {
             </td>
             <td><span class="nb-chip">${s.nbAbonnes}</span></td>
             <td class="td-mono">${fmtDate(s.createdAt)}</td>
+            <td class="td-mono">${finGratuiteCell(s)}</td>
             <td class="td-mono">${fmtDate(s.lastActivity)}</td>
             <td>
               <button class="btn-del" onclick="confirmDel('${esc(s.uid)}','${esc(s.nom)}')">🗑 Supprimer</button>

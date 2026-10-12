@@ -27,7 +27,7 @@
   // Valeurs de secours — utilisées seulement si la configuration Firebase (config/plans)
   // n'existe pas encore ou est incomplète. Ne devrait jamais arriver en usage normal.
   const PLAN_DEFAULTS = {
-    starter:   { label: "Starter",   prix: 0,     limite: 10 },
+    starter:   { label: "Starter",   prix: 0,     limite: 10, dureeMois: null }, // dureeMois : durée de la période gratuite (null = illimitée)
     essentiel: { label: "Essentiel", prix: 5000,  limite: 50 },
     pro:       { label: "Pro",       prix: 10000, limite: 300 },
     premium:   { label: "Premium",   prix: 15000, limite: null }, // null = illimité
