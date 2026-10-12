@@ -359,6 +359,24 @@ const estExemple = (t) => /XXX/i.test(String(t || ""));
 // Texte imprimable : vide si absent OU s'il contient encore l'exemple (« XXX ») → jamais de faux numéro sur une facture
 const texteFacture = (t) => { const s = String(t || "").trim(); return s && !estExemple(s) ? s : ""; };
 
+// ===== Fonctions réservées selon le plan (comme annoncé sur la landing) =====
+// Un seul tableau décide quel plan débloque quelle fonction. Plan inconnu = traité comme Starter (le plus restrictif).
+const PLAN_RANG = { starter: 0, essentiel: 1, pro: 2, premium: 3 };
+const FONCTION_PLAN_MIN = {
+  importDonnees: "essentiel",
+  saisieRapide: "essentiel",
+  analyseZone: "pro",
+  rapport6Mois: "pro",
+  relanceImpayes: "pro",
+  ficheInsolvables: "pro",
+  ficheSuspendre: "pro",
+  messageGroupe: "pro",
+};
+const planAutorise = (plan, fonction) => (PLAN_RANG[plan] ?? 0) >= (PLAN_RANG[FONCTION_PLAN_MIN[fonction]] ?? 0);
+const messageVerrou = (fonction) =>
+  "🔒 Cette fonction est réservée au plan " + (PLAN_LABELS[FONCTION_PLAN_MIN[fonction]] || "supérieur") +
+  ". Contactez Homs-Water (WhatsApp +237 679 437 377) pour passer au plan supérieur.";
+
 // ===== Commande d'un logo / d'une identité visuelle à l'équipe Homs-Water Manager =====
 const EMAIL_OFFICIEL = "contact@homswater.com";
 const WHATSAPP_OFFICIEL = "237679437377";
@@ -1800,6 +1818,11 @@ function App() {
 
   // Import générique : à partir de lignes collées depuis Excel/WhatsApp (voir composant ImportDonnees).
   const importDonnees = useCallback((periodeImport, rows) => {
+    // Fonction réservée à partir du plan Essentiel (GIC historique et démonstration : tout débloqué)
+    if (!(isDemo || !gicId || gicId === "gic-aept" || planAutorise(plan, "importDonnees"))) {
+      showToast(messageVerrou("importDonnees"));
+      return;
+    }
     const limite = limitePlanActuel;
     const nbNouveauxAbonnesPotentiels = rows.filter(
       (r) => !activeData.abonnes.some((a) => (a.refAbonne || "").trim().toUpperCase() === (r.refAbonne || "").trim().toUpperCase())
@@ -1853,7 +1876,7 @@ function App() {
     });
     setPeriode(periodeImport);
     showToast(`${newAbonnes.length} nouveaux abonnés et ${newReleves.length} relevés importés (${periodeLabel(periodeImport)})`);
-  }, [data, persist, plan, limitePlanActuel, labelPlanActuel]);
+  }, [data, persist, plan, limitePlanActuel, labelPlanActuel, isDemo, gicId]);
 
   const pdfFileName = () => {
     if (!printTarget) return "document.pdf";
@@ -1940,6 +1963,12 @@ function App() {
     telephones: gicInfoActif.telephones ?? (estGicHistorique ? "" : EXEMPLE_TELEPHONES),
     paiement: gicInfoActif.paiement ?? (estGicHistorique ? PAIEMENT_GIC_HISTORIQUE : EXEMPLE_PAIEMENT),
   };
+
+  // Fonctions réservées selon le plan : le GIC historique et le mode démonstration gardent tout débloqué
+  const accesTotal = isDemo || !gicId || gicId === "gic-aept";
+  const verrous = Object.fromEntries(Object.keys(FONCTION_PLAN_MIN).map((f) => [f, !accesTotal && !planAutorise(plan, f)]));
+  const refuserFonction = (fonction) => showToast(messageVerrou(fonction));
+  const garde = (fonction, action) => () => (verrous[fonction] ? refuserFonction(fonction) : action());
   const isDev = role === "administrateur";
   const libellesDepenses = (activeData.params.libellesDepenses && activeData.params.libellesDepenses.length) ? activeData.params.libellesDepenses : LIBELLES_DEPENSES_DEFAUT;
   const canManage = role === "administrateur";
@@ -2223,9 +2252,10 @@ function App() {
               resultatNet={resultatNet}
               onPrint={() => setPrintTarget({ type: "bilan" })}
               onGoToDepenses={() => setTab("depenses")}
-              onAnalyse={() => setPrintTarget({ type: "analyse" })}
-              onRelancer={() => setShowRelancer(true)}
-              onZone={() => setPrintTarget({ type: "zone" })}
+              onAnalyse={garde("rapport6Mois", () => setPrintTarget({ type: "analyse" }))}
+              onRelancer={garde("relanceImpayes", () => setShowRelancer(true))}
+              onZone={garde("analyseZone", () => setPrintTarget({ type: "zone" }))}
+              verrous={verrous}
             />
           )}
 
@@ -2266,9 +2296,11 @@ function App() {
               canAdd={canAdd}
               onImportDonnees={importDonnees}
               onFicheSuivi={() => setPrintTarget({ type: "fiche" })}
-              onFicheInsolvables={() => setPrintTarget({ type: "insolvables" })}
-              onFicheSuspendre={() => setPrintTarget({ type: "suspendre" })}
-              onMessageGroupe={() => setShowMessageGroupe(true)}
+              onFicheInsolvables={garde("ficheInsolvables", () => setPrintTarget({ type: "insolvables" }))}
+              onFicheSuspendre={garde("ficheSuspendre", () => setPrintTarget({ type: "suspendre" }))}
+              onMessageGroupe={garde("messageGroupe", () => setShowMessageGroupe(true))}
+              verrous={verrous}
+              onVerrou={refuserFonction}
               onAdd={(a, abonnement) => {
                 const limite = limitePlanActuel;
                 if (activeData.abonnes.length >= limite) {
@@ -2337,6 +2369,8 @@ function App() {
 
           {tab === "releve" && (
             <Releve
+              verrous={verrous}
+              onVerrou={refuserFonction}
               periode={periode}
               abonnes={activeData.abonnes}
               zones={zones}
@@ -3090,7 +3124,7 @@ function JaugeCirculaire({ taux }) {
   );
 }
 
-function Dashboard({ periode, totalFacture, totalEncaisse, totalImpayes, totalDepenses, resultatNet, onPrint, onGoToDepenses, onAnalyse, onRelancer, onZone } = {}) {
+function Dashboard({ periode, totalFacture, totalEncaisse, totalImpayes, totalDepenses, resultatNet, onPrint, onGoToDepenses, onAnalyse, onRelancer, onZone, verrous } = {}) {
   const taux = totalFacture > 0 ? Math.round(totalEncaisse / totalFacture * 100) : 0;
   const tauxColor = taux >= 80 ? "#2E8B57" : taux >= 50 ? "#E8A33D" : "#C0392B";
   const impayesAlert = totalFacture > 0 && (totalImpayes / totalFacture) > 0.30;
@@ -3146,18 +3180,18 @@ function Dashboard({ periode, totalFacture, totalEncaisse, totalImpayes, totalDe
       )}
 
       {onAnalyse && (
-        <button onClick={onAnalyse} className="w-full mb-3 flex items-center justify-center gap-2 text-[13px] font-700 text-white bg-[#0F5C6B] rounded-xl py-2.5 active:opacity-80 shadow-md">
-          📊 Rapport d'analyse 6 mois
+        <button onClick={onAnalyse} style={verrous?.rapport6Mois ? { opacity: 0.6 } : undefined} className="w-full mb-3 flex items-center justify-center gap-2 text-[13px] font-700 text-white bg-[#0F5C6B] rounded-xl py-2.5 active:opacity-80 shadow-md">
+          {verrous?.rapport6Mois ? "🔒 " : "📊 "}Rapport d'analyse 6 mois
         </button>
       )}
       {onRelancer && (
-        <button onClick={onRelancer} className="w-full mb-3 flex items-center justify-center gap-2 text-[13px] font-700 text-[#14232B] bg-[#25D366] rounded-xl py-2.5 active:opacity-80 shadow-md">
-          📲 Relancer les impayés ({totalImpayes > 0 ? fmt(totalImpayes) : "aucun"})
+        <button onClick={onRelancer} style={verrous?.relanceImpayes ? { opacity: 0.6 } : undefined} className="w-full mb-3 flex items-center justify-center gap-2 text-[13px] font-700 text-[#14232B] bg-[#25D366] rounded-xl py-2.5 active:opacity-80 shadow-md">
+          {verrous?.relanceImpayes ? "🔒 " : "📲 "}Relancer les impayés ({totalImpayes > 0 ? fmt(totalImpayes) : "aucun"})
         </button>
       )}
       {onZone && (
-        <button onClick={onZone} className="w-full mb-3 flex items-center justify-center gap-2 text-[13px] font-700 text-white bg-[#5B2D8E] rounded-xl py-2.5 active:opacity-80 shadow-md">
-          📍 Analyse par zone
+        <button onClick={onZone} style={verrous?.analyseZone ? { opacity: 0.6 } : undefined} className="w-full mb-3 flex items-center justify-center gap-2 text-[13px] font-700 text-white bg-[#5B2D8E] rounded-xl py-2.5 active:opacity-80 shadow-md">
+          {verrous?.analyseZone ? "🔒 " : "📍 "}Analyse par zone
         </button>
       )}
 
@@ -3516,7 +3550,7 @@ function prochainRef(abonnes) {
   return String(max + 1).padStart(3, "0");
 }
 
-function Abonnes({ abonnes, zones, periode, canManage, canAdd, onAdd, onUpdate, onDelete, onImportDonnees, onFicheSuivi, onFicheInsolvables, onFicheSuspendre, onMessageGroupe }) {
+function Abonnes({ abonnes, zones, periode, canManage, canAdd, onAdd, onUpdate, onDelete, onImportDonnees, onFicheSuivi, onFicheInsolvables, onFicheSuspendre, onMessageGroupe, verrous, onVerrou }) {
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [q, setQ] = useState("");
@@ -3577,10 +3611,10 @@ function Abonnes({ abonnes, zones, periode, canManage, canAdd, onAdd, onUpdate, 
 
       {canManage && onImportDonnees && (
         <button
-          onClick={() => setShowImport((s) => !s)}
+          onClick={() => (verrous?.importDonnees ? (onVerrou && onVerrou("importDonnees")) : setShowImport((s) => !s))}
           className="w-full mb-2 flex items-center justify-center gap-2 text-[13px] font-700 text-[#0F5C6B] bg-white/90 border border-[#0F5C6B]/30 rounded-xl py-2.5 active:bg-white shadow-md"
         >
-          <Upload size={15} /> {showImport ? "Fermer l'import" : "Importer des données (factures d'un autre mois)"}
+          <Upload size={15} /> {verrous?.importDonnees ? "🔒 " : ""}{showImport ? "Fermer l'import" : "Importer des données (factures d'un autre mois)"}
         </button>
       )}
       {canManage && showImport && onImportDonnees && (
@@ -3594,20 +3628,20 @@ function Abonnes({ abonnes, zones, periode, canManage, canAdd, onAdd, onUpdate, 
       )}
       <div className="h-2" />
       {onMessageGroupe && (
-        <BigButton icon={Share2} color="#25D366" onClick={onMessageGroupe}>
-          📢 Message groupé (WhatsApp)
+        <BigButton icon={Share2} color={verrous?.messageGroupe ? "#8A9A9A" : "#25D366"} onClick={onMessageGroupe}>
+          {verrous?.messageGroupe ? "🔒 " : "📢 "}Message groupé (WhatsApp)
         </BigButton>
       )}
       <div className="h-2" />
       {onFicheInsolvables && (
-        <BigButton icon={Download} color="#C0392B" onClick={onFicheInsolvables}>
-          Fiche des clients insolvables (PDF)
+        <BigButton icon={Download} color={verrous?.ficheInsolvables ? "#8A9A9A" : "#C0392B"} onClick={onFicheInsolvables}>
+          {verrous?.ficheInsolvables ? "🔒 " : ""}Fiche des clients insolvables (PDF)
         </BigButton>
       )}
       <div className="h-2" />
       {onFicheSuspendre && (
-        <BigButton icon={Download} color="#14232B" onClick={onFicheSuspendre}>
-          Fiche des clients à suspendre (PDF)
+        <BigButton icon={Download} color={verrous?.ficheSuspendre ? "#8A9A9A" : "#14232B"} onClick={onFicheSuspendre}>
+          {verrous?.ficheSuspendre ? "🔒 " : ""}Fiche des clients à suspendre (PDF)
         </BigButton>
       )}
       <div className="h-3" />
@@ -3715,7 +3749,7 @@ function Abonnes({ abonnes, zones, periode, canManage, canAdd, onAdd, onUpdate, 
 }
 
 // ================= RELEVÉ & FACTURATION =================
-function Releve({ periode, abonnes, zones, params, isDev, canAdd, canManage, paiements, relevesPeriode, resteAPayer, getAncienIndex, getImpayesAnterieurs, onSaveParams, onSaveReleve, onDeleteReleve, onGenerateZone, onError }) {
+function Releve({ periode, abonnes, zones, params, isDev, canAdd, canManage, paiements, relevesPeriode, resteAPayer, getAncienIndex, getImpayesAnterieurs, onSaveParams, onSaveReleve, onDeleteReleve, onGenerateZone, onError, verrous, onVerrou }) {
   const [showParams, setShowParams] = useState(false);
   const [p, setP] = useState(params);
   const [abonneId, setAbonneId] = useState(abonnes[0]?.id || "");
@@ -3790,7 +3824,7 @@ function Releve({ periode, abonnes, zones, params, isDev, canAdd, canManage, pai
       numFacture: `${periode.replace("-", "")}-${abonneSel?.refAbonne || abonneId.slice(0, 4)}`,
     });
     // G - Mode saisie rapide : passer automatiquement au suivant sans releve
-    if (modeSaisieRapide) {
+    if (modeSaisieRapide && !verrous?.saisieRapide) {
       const currentIdx = abonnesFiltres.findIndex(a => a.id === abonneId);
       const nonSaisis = abonnesFiltres.filter(a => !relevesPeriode.some(r => r.abonneId === a.id) && a.id !== abonneId);
       if (nonSaisis.length > 0) {
@@ -3840,10 +3874,10 @@ function Releve({ periode, abonnes, zones, params, isDev, canAdd, canManage, pai
           </div>
           {/* G - Bouton mode saisie rapide */}
           {canAdd && (
-            <button onClick={() => setModeSaisieRapide(m => !m)}
+            <button onClick={() => (verrous?.saisieRapide ? (onVerrou && onVerrou("saisieRapide")) : setModeSaisieRapide(m => !m))}
               className="text-[10px] font-700 px-2 py-1 rounded-lg"
               style={{background: modeSaisieRapide ? "#0F5C6B" : "#E2E8E7", color: modeSaisieRapide ? "white" : "#5B7070"}}>
-              {modeSaisieRapide ? "⚡ Rapide ON" : "⚡ Rapide"}
+              {verrous?.saisieRapide ? "🔒 ⚡ Rapide" : (modeSaisieRapide ? "⚡ Rapide ON" : "⚡ Rapide")}
             </button>
           )}
         </div>
