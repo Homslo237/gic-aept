@@ -26,6 +26,9 @@
 
   // Valeurs de secours — utilisées seulement si la configuration Firebase (config/plans)
   // n'existe pas encore ou est incomplète. Ne devrait jamais arriver en usage normal.
+  // Nombre d'utilisateurs d'équipe autorisés EN PLUS de l'administrateur du SDE
+  const PLAN_UTILISATEURS = { starter: 0, essentiel: 0, pro: 2, premium: 4 };
+
   const PLAN_DEFAULTS = {
     starter:   { label: "Starter",   prix: 0,     limite: 10, dureeMois: null }, // dureeMois : durée de la période gratuite (null = illimitée)
     essentiel: { label: "Essentiel", prix: 5000,  limite: 50 },
@@ -223,6 +226,7 @@
     COMMISSION_MONTHS_MAX: COMMISSION_MONTHS_MAX,
     PLAN_PRICES: PLAN_PRICES,
     PLAN_DEFAULTS: PLAN_DEFAULTS,
+    PLAN_UTILISATEURS: PLAN_UTILISATEURS,
     chargerConfigPlans: chargerConfigPlans,
     enregistrerConfigPlans: enregistrerConfigPlans,
     genCode: genCode,

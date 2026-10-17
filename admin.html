@@ -420,6 +420,10 @@ tbody td { padding: 14px 18px; font-size: 13px; vertical-align: middle; }
   .header-email { display: none; }
   thead th:nth-child(5), tbody td:nth-child(5),
   thead th:nth-child(6), tbody td:nth-child(6) { display: none; }
+  /* Tableau des SDE : colonnes masquées par NOM (Inscrite le, Dernière activité) ; Équipe et Fin de gratuité restent visibles */
+  #table-body thead th:nth-child(5), #table-body tbody td:nth-child(5),
+  #table-body thead th:nth-child(6), #table-body tbody td:nth-child(6) { display: table-cell; }
+  #table-body thead th.col-secondaire, #table-body tbody td.col-secondaire { display: none; }
   .header { height: auto; min-height: 64px; flex-wrap: wrap; row-gap: 8px; padding: 10px 14px; }
   .header-right { gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   .theme-switch { gap: 4px; padding: 3px; }
@@ -767,6 +771,8 @@ async function forgotPassword() {
 
 // ── Chargement données ──
 let sdesData = [];
+// Utilisateurs d'équipe autorisés EN PLUS de l'administrateur du SDE (valeurs partagées avec l'application)
+const PLAN_UTIL = () => (window.Affiliation && window.Affiliation.PLAN_UTILISATEURS) || { starter: 0, essentiel: 0, pro: 2, premium: 4 };
 let planConfigCache = null; // rempli par loadPlanConfig() ; tant que null, on utilise les valeurs de secours
 
 const PLAN_FALLBACK = {
@@ -880,14 +886,21 @@ async function loadData() {
     const users = [];
     usersSnap.forEach(doc => users.push({ uid: doc.id, ...doc.data() }));
 
-    // Dédupliquer par gicId
+    // Dédupliquer par gicId. Les utilisateurs d'équipe (champ « creePar ») ne représentent JAMAIS le SDE :
+    // c'est le profil de l'administrateur qui est affiché (comportement inchangé pour les SDE sans équipe).
     const byGicId = {};
+    const equipeParGic = {};   // gicId -> membres d'équipe
+    const profilsParGic = {};  // gicId -> tous les identifiants de profils du SDE
     users.forEach(u => {
       const gid = u.gicId || "gic-aept";
+      (profilsParGic[gid] = profilsParGic[gid] || []).push(u.uid);
+      if (u.creePar) { (equipeParGic[gid] = equipeParGic[gid] || []).push(u); return; }
       if (!byGicId[gid] || (u.createdAt||"") > (byGicId[gid].createdAt||"")) {
         byGicId[gid] = u;
       }
     });
+    // SDE sans profil d'administrateur (ne devrait pas arriver) : on garde le membre le plus récent pour ne rien perdre de vue
+    Object.keys(equipeParGic).forEach(gid => { if (!byGicId[gid]) byGicId[gid] = equipeParGic[gid].slice().sort((a,b)=>(b.createdAt||"")>(a.createdAt||"")?1:-1)[0]; });
 
     const sdes = [];
     await Promise.all(Object.entries(byGicId).map(async ([gicId, user]) => {
@@ -914,6 +927,8 @@ async function loadData() {
         plan: user.plan || "starter",
         createdAt: user.createdAt || null,
         nbAbonnes, lastActivity,
+        profils: profilsParGic[gicId] || [user.uid],
+        membres: (equipeParGic[gicId] || []).map(m => ({ uid: m.uid, nom: m.nom || "", email: m.email || "", role: m.role || "", membreDepuis: m.membreDepuis || "", suspendu: m.suspendu === true })),
       });
     }));
 
@@ -975,6 +990,15 @@ function finGratuiteCell(s) {
   return `${d} <span class="td-muted">(${jours} j)</span>`;
 }
 
+// Équipe d'un SDE : membres / limite du plan, et nombre de membres suspendus
+function equipeCell(s) {
+  const lim = PLAN_UTIL()[s.plan] ?? 0;
+  const n = (s.membres || []).length;
+  if (!n && !lim) return "—";
+  const susp = (s.membres || []).filter(m => m.suspendu).length;
+  return `${n}/${lim}` + (susp ? ` <span style="color:#E8A33D;font-weight:700;">⏸ ${susp}</span>` : "");
+}
+
 function renderTable(sdes) {
   const cnt = document.getElementById("table-count");
   cnt.textContent = sdes.length + " SDE" + (sdes.length > 1 ? "s" : "");
@@ -995,8 +1019,8 @@ function renderTable(sdes) {
     <div class="table-wrap">
     <table>
       <thead><tr>
-        <th>SDE</th><th>Email</th><th>Plan</th><th>Abonnés</th>
-        <th>Inscrite le</th><th>Fin de gratuité</th><th>Dernière activité</th><th>Action</th>
+        <th>SDE</th><th>Email</th><th>Plan</th><th>Abonnés</th><th>Équipe</th>
+        <th class="col-secondaire">Inscrite le</th><th>Fin de gratuité</th><th class="col-secondaire">Dernière activité</th><th>Action</th>
       </tr></thead>
       <tbody>
         ${sdes.map((s,i) => `
@@ -1015,9 +1039,10 @@ function renderTable(sdes) {
               </select>
             </td>
             <td><span class="nb-chip">${s.nbAbonnes}</span></td>
-            <td class="td-mono">${fmtDate(s.createdAt)}</td>
+            <td class="td-mono">${equipeCell(s)}</td>
+            <td class="td-mono col-secondaire">${fmtDate(s.createdAt)}</td>
             <td class="td-mono">${finGratuiteCell(s)}</td>
-            <td class="td-mono">${fmtDate(s.lastActivity)}</td>
+            <td class="td-mono col-secondaire">${fmtDate(s.lastActivity)}</td>
             <td>
               <button class="btn-del" onclick="confirmDel('${esc(s.uid)}','${esc(s.nom)}')">🗑 Supprimer</button>
             </td>
@@ -1028,9 +1053,25 @@ function renderTable(sdes) {
 
 async function updatePlan(uid, plan, idx) {
   try {
-    await db.collection("users").doc(uid).update({ plan });
+    const sde = sdesData[idx];
+    const profils = (sde && sde.profils && sde.profils.length) ? sde.profils : [uid];
+    const batch = db.batch();
+    // 1) le nouveau plan est appliqué à TOUS les profils du SDE (administrateur et utilisateurs d'équipe)
+    profils.forEach(pid => batch.update(db.collection("users").doc(pid), { plan }));
+    // 2) utilisateurs d'équipe : seuls les plus anciens, dans la limite du plan, restent actifs ; les autres sont suspendus
+    const limite = PLAN_UTIL()[plan] ?? 0;
+    const membres = ((sde && sde.membres) || []).slice().sort((a, b) => String(a.membreDepuis).localeCompare(String(b.membreDepuis)));
+    let nbSuspendus = 0;
+    membres.forEach((m, i) => {
+      const suspendre = i >= limite;
+      if (suspendre) nbSuspendus++;
+      if (m.suspendu !== suspendre) batch.update(db.collection("users").doc(m.uid), { suspendu: suspendre });
+      m.suspendu = suspendre;
+    });
+    await batch.commit();
     sdesData[idx].plan = plan;
-    showToast("Plan mis à jour → " + plan, "success");
+    showToast("Plan mis à jour → " + plan + (membres.length ? " · équipe : " + (membres.length - nbSuspendus) + " active(s), " + nbSuspendus + " suspendue(s)" : ""), "success");
+    renderTable(sdesData);
   } catch(e) {
     showToast("Erreur : " + (e.message||e), "error");
     loadData();
@@ -1038,6 +1079,17 @@ async function updatePlan(uid, plan, idx) {
 }
 
 function confirmDel(uid, nom) {
+  const sde = (sdesData || []).find(x => x.uid === uid);
+  const avecEquipe = sde && sde.gicId !== "gic-aept" && sde.profils && sde.profils.length > 1;
+  if (avecEquipe) {
+    if (!confirm(`Supprimer la SDE "${nom}" ET ses ${sde.profils.length - 1} utilisateur(s) d'équipe ?\n\nCela supprime leurs profils (users/…). Les données Firestore restent dans gics/ et doivent être supprimées via la console Firebase.`)) return;
+    const batch = db.batch();
+    sde.profils.forEach(pid => batch.delete(db.collection("users").doc(pid)));
+    batch.commit()
+      .then(() => { showToast("SDE et équipe supprimées : " + nom, "success"); loadData(); })
+      .catch(e => showToast("Erreur : " + (e.message||e), "error"));
+    return;
+  }
   if (!confirm(`Supprimer la SDE "${nom}" ?\n\nCela supprime uniquement son profil (users/${uid}).\nLes données Firestore restent dans gics/ et doivent être supprimées via la console Firebase.`)) return;
   db.collection("users").doc(uid).delete()
     .then(() => { showToast("Profil supprimé : " + nom, "success"); loadData(); })

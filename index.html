@@ -375,6 +375,22 @@ const FONCTION_PLAN_MIN = {
 const planAutorise = (plan, fonction) => (PLAN_RANG[plan] ?? 0) >= (PLAN_RANG[FONCTION_PLAN_MIN[fonction]] ?? 0);
 const MESSAGE_LECTURE_SEULE =
   "📖 Période gratuite terminée : votre espace est en consultation seule. Vos données sont conservées. Contactez Homs-Water (WhatsApp +237 679 437 377) pour passer à un plan payant.";
+// ===== Équipe d'un SDE : utilisateurs en plus de l'administrateur (valeurs partagées avec la console, via affiliation.js) =====
+const PLAN_UTILISATEURS_APP = { starter: 0, essentiel: 0, pro: 2, premium: 4 };
+const limiteUtilisateurs = (plan) => (((window.Affiliation && window.Affiliation.PLAN_UTILISATEURS) || PLAN_UTILISATEURS_APP)[plan]) ?? 0;
+const ROLES_EQUIPE = { secretaire: "Secrétaire (ajoute relevés et paiements)", associe: "Associé (lecture seule)" };
+const MESSAGE_ACCES_SUSPENDU =
+  "Votre accès est suspendu : le plan de votre SDE ne permet plus cet utilisateur, ou l'administrateur de votre SDE l'a retiré. Contactez l'administrateur de votre SDE.";
+const messageErreurEquipe = (e) => {
+  const code = (e && e.code) || "";
+  if (code === "auth/invalid-email") return "Adresse e-mail invalide.";
+  if (code === "auth/weak-password") return "Mot de passe trop court (6 caractères minimum).";
+  if (code === "auth/network-request-failed") return "Pas de connexion internet. Réessayez.";
+  if (code === "equipe/deja-utilisee") return "Cette adresse e-mail est déjà utilisée dans Homs-Water. Utilisez une autre adresse ou, s'il s'agit d'un ancien utilisateur de votre équipe, saisissez le mot de passe qu'il avait à l'origine.";
+  if (code === "equipe/compte-actif") return "Cette personne a déjà un compte actif dans Homs-Water (dans votre SDE ou dans un autre).";
+  if (code === "permission-denied" || /insufficient permissions/i.test((e && e.message) || "")) return "Action refusée par la sécurité du compte.";
+  return "Erreur : " + ((e && e.message) || e);
+};
 const messageVerrou = (fonction) =>
   "🔒 Cette fonction est réservée au plan " + (PLAN_LABELS[FONCTION_PLAN_MIN[fonction]] || "supérieur") +
   ". Contactez Homs-Water (WhatsApp +237 679 437 377) pour passer au plan supérieur.";
@@ -953,7 +969,7 @@ function RegisterScreen({ auth, db, onRegistered }) {
   );
 }
 
-function LoginScreen({ onLogin, onShowRegister, onBack, onDemo, initError }) {
+function LoginScreen({ onLogin, onShowRegister, onBack, onDemo, initError, notice }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -1092,7 +1108,8 @@ function LoginScreen({ onLogin, onShowRegister, onBack, onDemo, initError }) {
                 </button>
               </div>
 
-              {error && <p style={{ fontSize: 12, color: "#C0392B", fontWeight: 600, marginBottom: 12, marginTop: -8 }}>{error}</p>}
+              {notice && <p style={{ fontSize: 12, color: "#8A5A00", background: "#FFF4DC", border: "1px solid #E8A33D", borderRadius: 10, padding: "8px 10px", marginBottom: 12 }}>{notice}</p>}
+          {error && <p style={{ fontSize: 12, color: "#C0392B", fontWeight: 600, marginBottom: 12, marginTop: -8 }}>{error}</p>}
 
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
                 <button type="submit" disabled={checking} style={{
@@ -1291,7 +1308,100 @@ function ResetButton({ onResetData, nombreReleves, nombrePaiements }) {
   return null;
 }
 
-function ParametresTab({ gicInfo, gicEntete, planInfo, params, abonnes, releves, paiements, libellesDepenses, onSaveGicInfo, onSaveTarifs, onSaveLibelles, onMergeAbonnes, onResetData }) {
+function EquipeCard({ info, equipe, onAjouter, onChangerRole, onRetirer }) {
+  const [nom, setNom] = useState("");
+  const [email, setEmail] = useState("");
+  const [mdp, setMdp] = useState("");
+  const [roleNouveau, setRoleNouveau] = useState("secretaire");
+  const [voirMdp, setVoirMdp] = useState(false);
+  const [occupe, setOccupe] = useState(false);
+  const [dernier, setDernier] = useState(null);
+  const membres = (equipe && equipe.membres) || [];
+  const limite = info.limite;
+  const complet = membres.length >= limite;
+  const soumettre = async () => {
+    setOccupe(true);
+    try {
+      const r = await onAjouter({ nom: nom.trim(), email: email.trim(), mdp, role: roleNouveau });
+      if (r && r.ok) { setDernier({ nom: nom.trim(), email: email.trim(), mdp }); setNom(""); setEmail(""); setMdp(""); }
+    } finally { setOccupe(false); }
+  };
+  const lienWhatsApp = dernier
+    ? "https://wa.me/?text=" + encodeURIComponent("Bonjour " + dernier.nom + ", voici votre accès à l'application Homs-Water Manager de notre SDE : https://app.homswater.com\nE-mail : " + dernier.email + "\nMot de passe temporaire : " + dernier.mdp + "\nChangez-le dès votre première connexion.")
+    : "";
+  return (
+    <Card className="mb-4">
+      <SectionTitle>Équipe</SectionTitle>
+      {limite === 0 ? (
+        <p className="text-[12px] text-[#5B7070]">
+          🔒 L'ajout d'utilisateurs est réservé au plan <strong>Pro</strong> (2 utilisateurs en plus de vous) et au plan <strong>Premium</strong> (4 utilisateurs). Votre plan actuel : <strong>{info.planLabel}</strong>. Contactez Homs-Water (WhatsApp +237 679 437 377) pour passer au plan supérieur.
+        </p>
+      ) : (
+        <div>
+          <p className="text-[12px] text-[#5B7070] mb-3">
+            Plan <strong>{info.planLabel}</strong> : <strong>{membres.length} / {limite}</strong> utilisateurs en plus de vous. Chaque utilisateur se connecte avec son e-mail et voit les données de votre SDE selon son rôle.
+          </p>
+          {equipe && equipe.erreur && <p className="text-[12px] mb-3" style={{ color: "#C0392B" }}>{equipe.erreur}</p>}
+          {membres.map((m) => (
+            <div key={m.uid} className="rounded-xl p-3 mb-2" style={{ background: "#F0F6F5", border: "1px solid #E2E8E7" }}>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <div className="text-[13px] font-700 text-[#14232B]">{m.nom || "(sans nom)"}</div>
+                  <div className="text-[11px] text-[#5B7070]">{m.email}</div>
+                </div>
+                {m.suspendu && <span className="text-[11px] font-700 rounded-lg px-2 py-1" style={{ background: "#FFF4DC", color: "#8A5A00" }}>⏸ Suspendu</span>}
+              </div>
+              <div className="flex gap-2 mt-2">
+                <select className={inputCls} value={m.role} onChange={(e) => onChangerRole(m.uid, e.target.value)}>
+                  <option value="secretaire">Secrétaire</option>
+                  <option value="associe">Associé (lecture seule)</option>
+                </select>
+                <button type="button" onClick={() => onRetirer(m.uid, m.nom)} className="rounded-xl px-3 text-[12px] font-700" style={{ background: "#fff", color: "#C0392B", border: "1px solid #C0392B" }}>Retirer</button>
+              </div>
+              {m.suspendu && <p className="text-[11px] mt-2" style={{ color: "#8A5A00" }}>Ce compte ne peut plus se connecter (limite de votre plan). Il sera réactivé si le plan le permet de nouveau.</p>}
+            </div>
+          ))}
+          {dernier && (
+            <div className="rounded-xl p-3 mb-3" style={{ background: "#E8F6EC", border: "1px solid #2E9B57" }}>
+              <p className="text-[12px] text-[#14232B]"><strong>✅ Compte créé pour {dernier.nom}.</strong> Transmettez-lui ces accès :</p>
+              <p className="text-[12px] text-[#14232B] mt-1">E-mail : <strong>{dernier.email}</strong><br />Mot de passe temporaire : <strong>{dernier.mdp}</strong></p>
+              <a href={lienWhatsApp} target="_blank" rel="noopener noreferrer" className="block text-center text-[13px] font-700 rounded-xl py-2.5 mt-2" style={{ background: "#25D366", color: "#fff", textDecoration: "none" }}>💬 Envoyer par WhatsApp</a>
+            </div>
+          )}
+          {complet ? (
+            <p className="text-[12px]" style={{ color: "#8A5A00" }}>Limite atteinte pour votre plan ({limite} utilisateur{limite > 1 ? "s" : ""}). Retirez un utilisateur ou passez au plan supérieur pour en ajouter.</p>
+          ) : info.bloque ? (
+            <p className="text-[12px]" style={{ color: "#C0392B" }}>Ajout impossible : votre espace est en consultation seule.</p>
+          ) : (
+            <div>
+              <Field label="Nom de l'utilisateur">
+                <input className={inputCls} value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Ex. Marie Kamga" />
+              </Field>
+              <Field label="Adresse e-mail (il se connectera avec)">
+                <input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="prenom@exemple.com" autoCapitalize="none" />
+              </Field>
+              <Field label="Mot de passe temporaire (6 caractères minimum)">
+                <div className="flex gap-2">
+                  <input className={inputCls} type={voirMdp ? "text" : "password"} value={mdp} onChange={(e) => setMdp(e.target.value)} placeholder="À communiquer à l'utilisateur" autoCapitalize="none" />
+                  <button type="button" onClick={() => setVoirMdp((v) => !v)} className="rounded-xl px-3 text-[12px]" style={{ background: "#fff", border: "1px solid #C9D6D6" }}>{voirMdp ? "Cacher" : "Voir"}</button>
+                </div>
+              </Field>
+              <Field label="Rôle">
+                <select className={inputCls} value={roleNouveau} onChange={(e) => setRoleNouveau(e.target.value)}>
+                  <option value="secretaire">{ROLES_EQUIPE.secretaire}</option>
+                  <option value="associe">{ROLES_EQUIPE.associe}</option>
+                </select>
+              </Field>
+              <BigButton onClick={soumettre}>{occupe ? "Création en cours…" : "Créer le compte"}</BigButton>
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function ParametresTab({ gicInfo, gicEntete, planInfo, equipeInfo, equipe, onAjouterMembre, onChangerRoleMembre, onRetirerMembre, params, abonnes, releves, paiements, libellesDepenses, onSaveGicInfo, onSaveTarifs, onSaveLibelles, onMergeAbonnes, onResetData }) {
   const [nom, setNom] = useState(gicInfo?.nom || "");
   const [logoPreview, setLogoPreview] = useState(gicInfo?.logo || "");
   const [adresse, setAdresse] = useState(gicEntete?.adresse || "");
@@ -1339,6 +1449,10 @@ function ParametresTab({ gicInfo, gicEntete, planInfo, params, abonnes, releves,
             </p>
           )}
         </Card>
+      )}
+
+      {equipeInfo && (
+        <EquipeCard info={equipeInfo} equipe={equipe} onAjouter={onAjouterMembre} onChangerRole={onChangerRoleMembre} onRetirer={onRetirerMembre} />
       )}
 
       <DoublonsAbonnes abonnes={abonnes} releves={releves} paiements={paiements} onMerge={onMergeAbonnes} />
@@ -1566,6 +1680,8 @@ function App() {
   const [syncError, setSyncError] = useState("");
   const [saveError, setSaveError] = useState(""); // "" | "network" | "refused" | "toolarge" — bandeau permanent « non enregistré »
   const [dataBytes, setDataBytes] = useState(0); // taille approximative des données du SDE (limite Firestore : 1 Mio)
+  const [equipe, setEquipe] = useState({ chargement: false, membres: [], erreur: "" }); // utilisateurs d'équipe du SDE
+  const [avisConnexion, setAvisConnexion] = useState(""); // message affiché sur l'écran de connexion (ex. accès suspendu)
 
   // ---- Session (rôle) : dérivée du compte Firebase réellement connecté ----
   useEffect(() => {
@@ -1586,8 +1702,18 @@ function App() {
               userDoc = await userRef.get();
             }
           }
+          if (userDoc.exists && userDoc.data().suspendu === true) {
+            // Utilisateur d'équipe suspendu (plan insuffisant ou retiré) : déconnexion avec explication
+            await auth.signOut();
+            setAvisConnexion(MESSAGE_ACCES_SUSPENDU);
+            setRole(null);
+            setGicId(null);
+            setRoleChecked(true);
+            return;
+          }
           if (userDoc.exists) {
             const profile = userDoc.data();
+            setAvisConnexion("");
             // Compte SDE créé via RegisterScreen ou ancien compte GIC AEPT
             const resolvedRole = profile.role || EMAIL_TO_ROLE[user.email] || "associe";
             const resolvedGicId = profile.gicId || "gic-aept";
@@ -1756,7 +1882,16 @@ function App() {
   useEffect(() => {
     if (!role || isDemo || !db || !auth || !auth.currentUser) return;
     const unsubPlan = db.collection("users").doc(auth.currentUser.uid).onSnapshot(
-      (snap) => { try { if (snap && snap.exists) { const pr = snap.data() || {}; setPlan(pr.plan || "starter"); setProfilCreatedAt(pr.createdAt || ""); } } catch (e) {} },
+      (snap) => {
+        try {
+          if (snap && snap.exists) {
+            const pr = snap.data() || {};
+            if (pr.suspendu === true) { setAvisConnexion(MESSAGE_ACCES_SUSPENDU); auth.signOut(); return; }
+            setPlan(pr.plan || "starter");
+            setProfilCreatedAt(pr.createdAt || "");
+          }
+        } catch (e) {}
+      },
       () => {} // erreur : on garde le plan déjà chargé
     );
     return () => { try { unsubPlan(); } catch (e) {} };
@@ -1831,6 +1966,102 @@ function App() {
       showToast("Impossible de créer la copie de secours.");
     }
   };
+
+  // ===== Équipe : lecture, ajout, changement de rôle, retrait =====
+  const lireEquipe = async () => {
+    const snap = await db.collection("users").where("gicId", "==", gicId).get();
+    const membres = [];
+    snap.forEach((d) => {
+      const x = d.data() || {};
+      if (x.creePar) membres.push({ uid: d.id, nom: x.nom || "", email: x.email || "", role: x.role || "", suspendu: x.suspendu === true, membreDepuis: x.membreDepuis || "" });
+    });
+    membres.sort((a, b) => String(a.membreDepuis).localeCompare(String(b.membreDepuis)));
+    return membres;
+  };
+  const chargerEquipe = async () => {
+    if (isDemo || !db || !gicId || gicId === "gic-aept" || role !== "administrateur") return;
+    setEquipe((e) => ({ ...e, chargement: true, erreur: "" }));
+    try {
+      setEquipe({ chargement: false, membres: await lireEquipe(), erreur: "" });
+    } catch (e) {
+      setEquipe({ chargement: false, membres: [], erreur: "Liste de l'équipe indisponible : " + ((e && e.message) || e) });
+    }
+  };
+  const ajouterMembre = async ({ nom, email, mdp, role: roleMembre }) => {
+    if (isDemo) { showToast("Indisponible en mode démonstration."); return { ok: false }; }
+    if (gicId === "gic-aept" || !gicId) { showToast("L'ajout d'utilisateurs n'est pas disponible pour ce compte."); return { ok: false }; }
+    if (lectureSeule) { showToast(MESSAGE_LECTURE_SEULE); return { ok: false }; }
+    const limite = limiteUtilisateurs(plan);
+    if (!(limite > 0)) { showToast("🔒 L'ajout d'utilisateurs est réservé au plan Pro ou Premium."); return { ok: false }; }
+    if (!nom) { showToast("Saisissez le nom de l'utilisateur."); return { ok: false }; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast("Adresse e-mail invalide."); return { ok: false }; }
+    if (!mdp || mdp.length < 6) { showToast("Mot de passe trop court (6 caractères minimum)."); return { ok: false }; }
+    if (roleMembre !== "secretaire" && roleMembre !== "associe") { showToast("Choisissez un rôle."); return { ok: false }; }
+    let secApp = null;
+    let secAuth = null;
+    try {
+      const actuels = await lireEquipe();
+      if (actuels.length >= limite) { setEquipe((e) => ({ ...e, membres: actuels })); showToast("Limite atteinte pour votre plan (" + limite + " utilisateur" + (limite > 1 ? "s" : "") + ")."); return { ok: false }; }
+      // Seconde connexion Firebase : l'administrateur reste connecté sur la sienne
+      secApp = firebase.initializeApp(firebaseConfig, "equipe-" + Date.now());
+      secAuth = secApp.auth();
+      let cred = null;
+      let compteNeuf = false;
+      try {
+        cred = await secAuth.createUserWithEmailAndPassword(email, mdp);
+        compteNeuf = true;
+      } catch (e1) {
+        if (e1 && e1.code === "auth/email-already-in-use") {
+          // Adresse déjà connue (ex. ancien utilisateur retiré) : on essaie avec le mot de passe saisi
+          try { cred = await secAuth.signInWithEmailAndPassword(email, mdp); }
+          catch (e2) { throw Object.assign(new Error("deja-utilisee"), { code: "equipe/deja-utilisee" }); }
+          const existant = await db.collection("users").doc(cred.user.uid).get();
+          if (existant.exists) throw Object.assign(new Error("compte-actif"), { code: "equipe/compte-actif" });
+        } else {
+          throw e1;
+        }
+      }
+      const profil = { gicId, email, role: roleMembre, nom, plan, membreDepuis: new Date().toISOString(), creePar: auth.currentUser.uid };
+      if (profilCreatedAt) profil.createdAt = profilCreatedAt;
+      try {
+        await db.collection("users").doc(cred.user.uid).set(profil);
+      } catch (e3) {
+        if (compteNeuf) { try { await cred.user.delete(); } catch (e4) {} } // pas de compte orphelin
+        throw e3;
+      }
+      logAction("Équipe", "Utilisateur ajouté : " + nom + " (" + roleMembre + ")");
+      await chargerEquipe();
+      showToast("Compte créé pour " + nom + ".");
+      return { ok: true };
+    } catch (e) {
+      showToast(messageErreurEquipe(e));
+      return { ok: false };
+    } finally {
+      try { if (secAuth) await secAuth.signOut(); } catch (e) {}
+      try { if (secApp) await secApp.delete(); } catch (e) {}
+    }
+  };
+  const changerRoleMembre = async (uidMembre, nouveauRole) => {
+    if (lectureSeule) { showToast(MESSAGE_LECTURE_SEULE); return; }
+    if (nouveauRole !== "secretaire" && nouveauRole !== "associe") return;
+    try {
+      await db.collection("users").doc(uidMembre).update({ role: nouveauRole });
+      logAction("Équipe", "Rôle modifié : " + nouveauRole);
+      await chargerEquipe();
+      showToast("Rôle mis à jour.");
+    } catch (e) { showToast(messageErreurEquipe(e)); }
+  };
+  const retirerMembre = async (uidMembre, nomMembre) => {
+    if (lectureSeule) { showToast(MESSAGE_LECTURE_SEULE); return; }
+    if (!window.confirm("Retirer " + (nomMembre || "cet utilisateur") + " de votre équipe ?\n\nIl ne pourra plus se connecter. Son adresse e-mail reste réservée : pour le rajouter plus tard, utilisez la même adresse et le mot de passe qu'il avait à l'origine.")) return;
+    try {
+      await db.collection("users").doc(uidMembre).delete();
+      logAction("Équipe", "Utilisateur retiré : " + (nomMembre || ""));
+      await chargerEquipe();
+      showToast("Utilisateur retiré.");
+    } catch (e) { showToast(messageErreurEquipe(e)); }
+  };
+  useEffect(() => { if (tab === "parametres") chargerEquipe(); }, [tab, role, gicId, isDemo]);
 
   // Import générique : à partir de lignes collées depuis Excel/WhatsApp (voir composant ImportDonnees).
   const importDonnees = useCallback((periodeImport, rows) => {
@@ -2217,6 +2448,7 @@ function App() {
       );
     }
     return <LoginScreen
+      notice={avisConnexion}
       initError={firebaseInitError || syncError}
       onShowRegister={() => setShowRegister(true)}
       onBack={() => setShowLoginForm(false)}
@@ -2503,6 +2735,11 @@ function App() {
               gicInfo={activeData.gicInfo}
               gicEntete={enteteInit}
               planInfo={isDemo ? null : { label: labelPlanActuel, limite: limitePlanActuel, nbAbonnes: activeData.abonnes.length, finGratuite: finGratuite ? finGratuite.fin.toLocaleDateString("fr-FR") : "", lectureSeule }}
+              equipeInfo={isDemo || !gicId || gicId === "gic-aept" ? null : { limite: limiteUtilisateurs(plan), planLabel: labelPlanActuel, bloque: lectureSeule }}
+              equipe={equipe}
+              onAjouterMembre={ajouterMembre}
+              onChangerRoleMembre={changerRoleMembre}
+              onRetirerMembre={retirerMembre}
               params={activeData.params}
               abonnes={activeData.abonnes}
               releves={activeData.releves}
