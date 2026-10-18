@@ -969,12 +969,14 @@ function RegisterScreen({ auth, db, onRegistered }) {
   );
 }
 
-function LoginScreen({ onLogin, onShowRegister, onBack, onDemo, initError, notice }) {
+function LoginScreen({ onLogin, onShowRegister, onBack, onDemo, initError, notice, endedKey }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
+  // Fin d'une tentative de connexion sans entrer (compte suspendu, sans profil…) : on débloque le bouton
+  useEffect(() => { setChecking(false); }, [endedKey]);
   const [resetSent, setResetSent] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [autoLockMsg] = useState(() => {
@@ -1108,7 +1110,7 @@ function LoginScreen({ onLogin, onShowRegister, onBack, onDemo, initError, notic
                 </button>
               </div>
 
-              {notice && <p style={{ fontSize: 12, color: "#8A5A00", background: "#FFF4DC", border: "1px solid #E8A33D", borderRadius: 10, padding: "8px 10px", marginBottom: 12 }}>{notice}</p>}
+              {notice && !checking && <p style={{ fontSize: 12, color: "#8A5A00", background: "#FFF4DC", border: "1px solid #E8A33D", borderRadius: 10, padding: "8px 10px", marginBottom: 12 }}>{notice}</p>}
           {error && <p style={{ fontSize: 12, color: "#C0392B", fontWeight: 600, marginBottom: 12, marginTop: -8 }}>{error}</p>}
 
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
@@ -1682,6 +1684,7 @@ function App() {
   const [dataBytes, setDataBytes] = useState(0); // taille approximative des données du SDE (limite Firestore : 1 Mio)
   const [equipe, setEquipe] = useState({ chargement: false, membres: [], erreur: "" }); // utilisateurs d'équipe du SDE
   const [avisConnexion, setAvisConnexion] = useState(""); // message affiché sur l'écran de connexion (ex. accès suspendu)
+  const [finTentative, setFinTentative] = useState(0); // +1 à chaque tentative de connexion terminée sans entrer (débloque le bouton « Vérification… »)
 
   // ---- Session (rôle) : dérivée du compte Firebase réellement connecté ----
   useEffect(() => {
@@ -1709,6 +1712,7 @@ function App() {
             setRole(null);
             setGicId(null);
             setRoleChecked(true);
+            setFinTentative((n) => n + 1);
             return;
           }
           if (userDoc.exists) {
@@ -1740,6 +1744,7 @@ function App() {
             await auth.signOut();
             setRole(null);
             setGicId(null);
+            setFinTentative((n) => n + 1);
           }
         } catch (e) {
           // Firestore inaccessible → fallback ancien système si email connu
@@ -2449,6 +2454,7 @@ function App() {
     }
     return <LoginScreen
       notice={avisConnexion}
+      endedKey={finTentative}
       initError={firebaseInitError || syncError}
       onShowRegister={() => setShowRegister(true)}
       onBack={() => setShowLoginForm(false)}
