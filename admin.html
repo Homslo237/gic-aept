@@ -991,12 +991,16 @@ function finGratuiteCell(s) {
 }
 
 // Équipe d'un SDE : membres / limite du plan, et nombre de membres suspendus
-function equipeCell(s) {
+function equipeCell(s, idx) {
   const lim = PLAN_UTIL()[s.plan] ?? 0;
-  const n = (s.membres || []).length;
+  const membres = (s.membres || []).slice().sort((x, y) => String(x.membreDepuis).localeCompare(String(y.membreDepuis)));
+  const n = membres.length;
   if (!n && !lim) return "—";
-  const susp = (s.membres || []).filter(m => m.suspendu).length;
-  return `${n}/${lim}` + (susp ? ` <span style="color:#E8A33D;font-weight:700;">⏸ ${susp}</span>` : "");
+  const susp = membres.filter(m => m.suspendu).length;
+  // incohérence : un membre suspendu alors que le plan l'autorise, ou actif alors que le plan ne l'autorise plus
+  const incoherent = membres.some((m, i) => m.suspendu !== (i >= lim));
+  const bouton = incoherent ? ` <button type="button" title="Resynchroniser l'équipe avec le plan" onclick="synchroniserEquipe(${idx})" style="cursor:pointer;border:1px solid #E8A33D;background:transparent;color:#E8A33D;border-radius:6px;padding:0 6px;font-weight:700;">⟳</button>` : "";
+  return `${n}/${lim}` + (susp ? ` <span style="color:#E8A33D;font-weight:700;">⏸ ${susp}</span>` : "") + bouton;
 }
 
 function renderTable(sdes) {
@@ -1039,7 +1043,7 @@ function renderTable(sdes) {
               </select>
             </td>
             <td><span class="nb-chip">${s.nbAbonnes}</span></td>
-            <td class="td-mono">${equipeCell(s)}</td>
+            <td class="td-mono">${equipeCell(s, i)}</td>
             <td class="td-mono col-secondaire">${fmtDate(s.createdAt)}</td>
             <td class="td-mono">${finGratuiteCell(s)}</td>
             <td class="td-mono col-secondaire">${fmtDate(s.lastActivity)}</td>
@@ -1055,27 +1059,34 @@ async function updatePlan(uid, plan, idx) {
   try {
     const sde = sdesData[idx];
     const profils = (sde && sde.profils && sde.profils.length) ? sde.profils : [uid];
-    const batch = db.batch();
-    // 1) le nouveau plan est appliqué à TOUS les profils du SDE (administrateur et utilisateurs d'équipe)
-    profils.forEach(pid => batch.update(db.collection("users").doc(pid), { plan }));
-    // 2) utilisateurs d'équipe : seuls les plus anciens, dans la limite du plan, restent actifs ; les autres sont suspendus
+    // Une SEULE écriture par profil (le plan, et pour un membre l'état de suspension) : pas de double écriture sur le même document
+    const maj = {};
+    profils.forEach(pid => { maj[pid] = { plan }; });
+    // Utilisateurs d'équipe : seuls les plus anciens, dans la limite du plan, restent actifs ; les autres sont suspendus.
+    // L'état attendu est TOUJOURS réécrit (même s'il semble déjà correct) : la base devient cohérente avec le plan.
     const limite = PLAN_UTIL()[plan] ?? 0;
     const membres = ((sde && sde.membres) || []).slice().sort((a, b) => String(a.membreDepuis).localeCompare(String(b.membreDepuis)));
     let nbSuspendus = 0;
     membres.forEach((m, i) => {
       const suspendre = i >= limite;
       if (suspendre) nbSuspendus++;
-      if (m.suspendu !== suspendre) batch.update(db.collection("users").doc(m.uid), { suspendu: suspendre });
-      m.suspendu = suspendre;
+      maj[m.uid] = Object.assign(maj[m.uid] || {}, { suspendu: suspendre });
     });
+    const batch = db.batch();
+    Object.keys(maj).forEach(pid => batch.update(db.collection("users").doc(pid), maj[pid]));
     await batch.commit();
-    sdesData[idx].plan = plan;
     showToast("Plan mis à jour → " + plan + (membres.length ? " · équipe : " + (membres.length - nbSuspendus) + " active(s), " + nbSuspendus + " suspendue(s)" : ""), "success");
-    renderTable(sdesData);
+    await loadData(); // affichage rechargé depuis la base : on voit l'état réel
   } catch(e) {
     showToast("Erreur : " + (e.message||e), "error");
     loadData();
   }
+}
+
+// Resynchronise l'équipe d'un SDE avec son plan actuel (utile si l'état affiché est incohérent)
+function synchroniserEquipe(idx) {
+  const s = sdesData[idx];
+  if (s) updatePlan(s.uid, s.plan, idx);
 }
 
 function confirmDel(uid, nom) {
