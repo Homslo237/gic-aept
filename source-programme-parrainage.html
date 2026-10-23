@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"><title>Programme de parrainage — Homs-Water Manager</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"><style>
+  :root {
+    --deep: #0B4F5E; --cyan: #00C2CB; --sand: #F5EDD6;
+    --ink: #0A1A1F; --orange: #E8722A; --gray: #5B7A80; --white: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: 'Inter', sans-serif; color: var(--ink);
+    background: var(--white); line-height: 1.6;
+  }
+  .hero {
+    background: linear-gradient(160deg, #0B4F5E 0%, #073B47 60%, #041F26 100%);
+    color: white; padding: 48px 20px 40px; text-align: center;
+  }
+  .hero h1 { font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 800; margin: 0 0 8px; }
+  .hero p { color: rgba(255,255,255,0.75); font-size: 14px; margin: 0; }
+  .container { max-width: 640px; margin: 0 auto; padding: 0 20px; }
+  .toc {
+    background: var(--sand); border-radius: 16px; padding: 20px; margin: -20px 0 32px;
+  }
+  .toc-title { font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--deep); margin-bottom: 10px; }
+  .toc a { display: block; color: var(--ink); text-decoration: none; font-size: 14px; padding: 6px 0; border-bottom: 1px solid rgba(11,79,94,0.1); }
+  .toc a:last-child { border-bottom: none; }
+  .section-label {
+    display: inline-block; font-size: 11px; font-weight: 700; color: var(--cyan);
+    letter-spacing: 0.1em; text-transform: uppercase; margin: 32px 0 8px;
+    background: rgba(0,194,203,0.1); padding: 4px 12px; border-radius: 12px;
+  }
+  h2 { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; margin: 4px 0 16px; color: var(--deep); }
+  h3 { font-size: 16px; font-weight: 700; margin: 24px 0 8px; color: var(--ink); }
+  p { font-size: 14.5px; color: #333; margin: 0 0 12px; }
+  ol, ul { padding-left: 20px; font-size: 14.5px; color: #333; }
+  li { margin-bottom: 8px; }
+  .step {
+    display: flex; gap: 14px; align-items: flex-start; margin-bottom: 18px;
+    background: #FAFAF8; border: 1px solid #EEE; border-radius: 14px; padding: 14px 16px;
+  }
+  .step-num {
+    flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--orange); color: white; font-weight: 800; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-text { font-size: 14px; color: #333; }
+  .step-text strong { color: var(--ink); }
+  .video-slot {
+    background: var(--ink); color: rgba(255,255,255,0.5); border-radius: 14px;
+    padding: 24px; text-align: center; font-size: 13px; margin: 16px 0;
+    border: 2px dashed rgba(255,255,255,0.2);
+  }
+  .note {
+    background: rgba(232,114,42,0.08); border-left: 3px solid var(--orange);
+    padding: 12px 16px; border-radius: 8px; font-size: 13.5px; margin: 16px 0; color: #5A3A20;
+  }
+  .divider { height: 1px; background: #EEE; margin: 40px 0; }
+  .btn-top {
+    display: inline-block; margin: 20px 0; font-size: 12px; color: var(--gray);
+    text-decoration: none; border: 1px solid #DDD; padding: 6px 14px; border-radius: 20px;
+  }
+  footer { text-align: center; padding: 40px 20px; color: var(--gray); font-size: 12px; }
+
+  .hl { background: linear-gradient(160deg,#0B4F5E 0%,#073B47 100%); color:#fff; border-radius:16px; padding:22px 24px; text-align:center; margin:14px 0 8px; font-size:14.5px; }
+  .hl p { color:#fff; margin:0; }
+  .rules { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+  .rule { border:1px solid #EEE; background:#FAFAF8; border-radius:12px; padding:10px 14px; }
+  .rule-l { font-size:10px; letter-spacing:.08em; text-transform:uppercase; font-weight:700; color:#333; }
+  .rule-v { font-size:14px; font-weight:700; margin-top:4px; color:var(--ink); }
+  .faq-item { border-top:1px solid #EEE; padding:10px 0 4px; }
+  .faq-q { font-weight:700; font-size:13.5px; margin:0 0 3px; color:var(--ink); }
+  .faq-a { font-size:13.5px; margin:0 0 8px; color:#333; }
+  .step, .rule, .faq-item, .note, .hl { break-inside: avoid; }
+  h2, .section-label { break-after: avoid; }
+</style></head><body>
+<div class="hero"><h1>🤝 Programme de parrainage</h1><p>Homs-Water Manager — guide simple et transparent pour tout futur parrain ou partenaire</p></div>
+<div class="container">
+  <div class="hl"><p>Recommandez un SDE, et touchez <strong>20% de commission</strong> sur son abonnement, chaque mois, pendant <strong>12 mois</strong>.</p></div>
+  <span class="section-label">Le cheminement</span>
+  <h2>Comment ça marche, étape par étape</h2>
+  <div class="step"><div class="step-num">1</div><div class="step-text"><strong>Vous partagez votre lien personnel.</strong> Sur WhatsApp, les réseaux sociaux, ou simplement de bouche-à-oreille.</div></div><div class="step"><div class="step-num">2</div><div class="step-text"><strong>Le prospect découvre l'application.</strong> Il arrive sur la page de présentation : fonctionnalités, tarifs, témoignages — tout y est visible avant qu'il ne s'engage.</div></div><div class="step"><div class="step-num">3</div><div class="step-text"><strong>Il crée son compte SDE, gratuitement.</strong> Votre code de parrainage reste associé à son compte automatiquement, sans rien à faire de plus.</div></div><div class="step"><div class="step-num">4</div><div class="step-text"><strong>Il utilise l'application.</strong> Il commence sur le plan gratuit, puis passe, quand il le souhaite, à un abonnement payant.</div></div><div class="step"><div class="step-num">5</div><div class="step-text"><strong>Votre commission se calcule automatiquement.</strong> Dès qu'il paie un abonnement, 20% de son montant mensuel apparaît dans votre page personnelle.</div></div><div class="step"><div class="step-num">6</div><div class="step-text"><strong>L'équipe Homslo/Vision vous verse la commission.</strong> Le paiement se fait par Orange Money ou MTN Mobile Money, chaque mois.</div></div><div class="step"><div class="step-num">7</div><div class="step-text"><strong>Vous confirmez la réception.</strong> Une fois payé, vous validez "J'ai bien reçu" dans votre page — pour que tout reste transparent, pour vous comme pour l'équipe.</div></div>
+  <div class="divider"></div>
+  <span class="section-label">Votre rôle</span>
+  <h2>La mission du parrain</h2>
+  <p>Être parrain, ce n'est pas seulement partager un lien. C'est aussi accompagner la personne que vous recommandez, pour qu'elle réussisse vraiment avec l'application.</p>
+  <div class="step"><div class="step-num" style="background:var(--cyan)">✓</div><div class="step-text"><strong>Connaître l'application.</strong> Sachez expliquer les fonctionnalités principales (relevés, factures, paiements, tableau de bord...) pour convaincre votre filleul avec confiance.</div></div>
+  <div class="step"><div class="step-num" style="background:var(--cyan)">✓</div><div class="step-text"><strong>Accompagner votre filleul.</strong> Aidez-le à démarrer, conseillez-le, et formez-le aux bases si besoin — surtout à ses premiers pas.</div></div>
+  <div class="step"><div class="step-num" style="background:var(--cyan)">✓</div><div class="step-text"><strong>Faire remonter les retours.</strong> Transmettez les avis et expériences de vos filleuls à l'équipe Homslo/Vision, par WhatsApp ou tout autre moyen traçable (message écrit, email) — pour que tout reste consultable.</div></div>
+  <div class="divider"></div>
+  <span class="section-label">Conditions</span>
+  <h2>Les règles, sans surprise</h2>
+  <div class="rules">
+    <div class="rule"><div class="rule-l">Taux de commission</div><div class="rule-v">20%</div></div>
+    <div class="rule"><div class="rule-l">Durée</div><div class="rule-v">12 mois</div></div>
+    <div class="rule"><div class="rule-l">Calculée sur</div><div class="rule-v">Le montant payé par mois</div></div>
+    <div class="rule"><div class="rule-l">Coût pour devenir parrain</div><div class="rule-v">Gratuit</div></div>
+  </div>
+  <div class="note"><strong>⚠️ À savoir :</strong> si votre filleul arrête son abonnement avant la fin des 12 mois, votre commission s'arrête aussi, à partir du mois suivant l'arrêt. Elle reprend seulement s'il se réabonne.</div>
+  <div class="divider"></div>
+  <span class="section-label">Questions fréquentes</span>
+  <h2>Vos questions, nos réponses</h2>
+  <div class="faq-item"><p class="faq-q">Dois-je payer pour devenir parrain ?</p><p class="faq-a">Non, c'est entièrement gratuit.</p></div>
+  <div class="faq-item"><p class="faq-q">Puis-je parrainer plusieurs SDE ?</p><p class="faq-a">Oui, autant que vous voulez — chaque filleul compte séparément.</p></div>
+  <div class="faq-item"><p class="faq-q">Mon filleul doit-il payer pour que je sois payé ?</p><p class="faq-a">Oui. Tant qu'il reste sur le plan gratuit, il n'y a pas de commission. Elle démarre dès son premier mois payé.</p></div>
+  <div class="faq-item"><p class="faq-q">Combien de temps mon lien reste-t-il actif ?</p><p class="faq-a">Aussi longtemps que votre compte parrain existe — pas de date limite pour partager.</p></div>
+  <div class="divider"></div>
+  <h3>Besoin d'aide ?</h3>
+  <p>Une question, un désaccord sur une commission, une suggestion ? Contactez l'équipe Homslo/Vision :</p>
+  <ul><li>📱 WhatsApp : <strong>+237 679 437 377</strong></li><li>✉️ Email : <strong>contact@homswater.com</strong></li></ul>
+</div>
+<footer>Homs-Water Manager — Homslo/Vision · "Le futur maintenant" · © 2026</footer>
+</body></html>
