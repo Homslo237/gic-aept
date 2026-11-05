@@ -527,6 +527,11 @@ function getDocRef(db, gicId) {
   return db.collection("gics").doc(gicId).collection("data").doc("main");
 }
 
+// Stockage « une chemise par mois » (schema 2) : un document par mois, réservé aux SDE inscrits (pas au GIC historique)
+function getPeriodesRef(db, gicId) {
+  return db.collection("gics").doc(gicId).collection("periodes");
+}
+
 const DEFAULT_DATA = {
   abonnes: [],
   releves: [],
@@ -1641,6 +1646,9 @@ function App() {
   const [plan, setPlan] = useState("starter");
   const [profilCreatedAt, setProfilCreatedAt] = useState(""); // date d'inscription (fin de la période gratuite du Starter)
   const lectureSeuleRef = useRef(false); // lu par persist (évite une dépendance circulaire)
+  const schemaRef = useRef(1); // 1 = ancien stockage (un seul document) ; 2 = « une chemise par mois »
+  const shardSigRef = useRef({}); // signatures des chemises telles qu'elles sont en base (schema 2)
+  const mainSigRef = useRef(""); // signature du document principal au dernier chargement (schema 2)
   const [planConfig, setPlanConfig] = useState(null); // null tant que non chargé -> on utilise les valeurs de secours
   const [isDemo, setIsDemo] = useState(false);
 
@@ -1829,8 +1837,62 @@ function App() {
     const docRef = getDocRef(db, gicId);
     let seeding = false;
     let cancelled = false;
+    // ===== « Une chemise par mois » (schema 2) : document principal + un document par mois, rassemblés en mémoire =====
+    schemaRef.current = 1;
+    shardSigRef.current = {};
+    mainSigRef.current = "";
+    let mainRemote = null;
+    let chemises = null;
+    let unsubChemises = null;
+    const appliquerV2 = () => {
+      if (cancelled || !mainRemote || chemises === null) return;
+      if (!window.Stockage) {
+        setSyncError("Bibliothèque de stockage absente (affiliation.js) : actualisez la page.");
+        setLoaded(true);
+        return;
+      }
+      const assemble = window.Stockage.assembler(mainRemote, chemises);
+      const complet = {
+        ...DEFAULT_DATA,
+        ...assemble,
+        params: { ...DEFAULT_DATA.params, ...(assemble.params || {}) },
+        gicInfo: { ...DEFAULT_DATA.gicInfo, ...(assemble.gicInfo || {}) },
+      };
+      schemaRef.current = 2;
+      shardSigRef.current = window.Stockage.signaturesDe(chemises);
+      mainSigRef.current = window.Stockage.signature(window.Stockage.decouper(complet).main);
+      setData(complet);
+      try {
+        setDataBytes(window.Stockage.plusGrosDocument(mainRemote, chemises));
+        window.localStorage.setItem(`sde-data-${gicId || "gic-aept"}-v1`, JSON.stringify(complet));
+      } catch (e) {}
+      setLoaded(true);
+    };
     const unsub = docRef.onSnapshot(
       (snap) => {
+        if (snap.exists && gicId && gicId !== "gic-aept" && snap.data() && snap.data().schema === 2) {
+          mainRemote = snap.data();
+          if (!unsubChemises) {
+            unsubChemises = getPeriodesRef(db, gicId).onSnapshot(
+              (qs) => {
+                // Réponse vide venant seulement du cache du téléphone : on attend le serveur (jamais de données « vides » affichées)
+                if (qs.empty && qs.metadata && qs.metadata.fromCache) return;
+                const c = {};
+                qs.forEach((d) => { c[d.id] = d.data(); });
+                chemises = c;
+                appliquerV2();
+              },
+              (err) => { setSyncError("Chemises mensuelles illisibles : " + ((err && err.message) || err)); setLoaded(true); }
+            );
+          } else {
+            appliquerV2();
+          }
+          return;
+        }
+        // Ancien stockage (un seul document) : comportement inchangé
+        if (unsubChemises) { unsubChemises(); unsubChemises = null; chemises = null; mainRemote = null; }
+        schemaRef.current = 1;
+        shardSigRef.current = {};
         if (snap.exists) {
           const remote = snap.data();
           setData({
@@ -1868,7 +1930,7 @@ function App() {
         setLoaded(true);
       }
     );
-    return () => { cancelled = true; unsub(); };
+    return () => { cancelled = true; unsub(); if (unsubChemises) { try { unsubChemises(); } catch (e) {} } };
   }, [role, gicId, isDemo]);
 
   // Écoute en direct de la configuration des tarifs (modifiable par Jacques depuis admin.html).
@@ -1922,14 +1984,28 @@ function App() {
     setSaving(true);
     try {
       const json = JSON.stringify(nextData);
-      setDataBytes(json.length);
+      setDataBytes(schemaRef.current === 2 && window.Stockage ? window.Stockage.plusGrosDocumentDe(nextData) : json.length);
       window.localStorage.setItem(`sde-data-${gicId || "gic-aept"}-v1`, json);
     } catch (e) {
       // cache local indisponible : Firestore reste la source de vérité
     }
+    // Écriture : ancien stockage = un seul document ; « une chemise par mois » = uniquement les chemises modifiées (une seule opération)
+    const ecrireDonnees = (donnees) => {
+      if (schemaRef.current === 2 && window.Stockage && gicId && gicId !== "gic-aept") {
+        const S = window.Stockage;
+        const { main, periodes } = S.decouper(donnees);
+        const plan = S.diff(shardSigRef.current, periodes);
+        const batch = db.batch();
+        const col = getPeriodesRef(db, gicId);
+        plan.ecrire.forEach((k) => batch.set(col.doc(k), periodes[k]));
+        plan.supprimer.forEach((k) => batch.delete(col.doc(k)));
+        if (S.signature(main) !== mainSigRef.current) batch.set(getDocRef(db, gicId), main);
+        return batch.commit();
+      }
+      return getDocRef(db, gicId).set(donnees);
+    };
     if (db) {
-      getDocRef(db, gicId)
-        .set(nextData)
+      ecrireDonnees(nextData)
         .then(() => { try { setSaveError(""); } catch (e) {} })
         .catch((e) => {
           const denied = e && (e.code === "permission-denied" || /insufficient permissions/i.test(e.message || ""));

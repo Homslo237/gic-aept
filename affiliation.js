@@ -242,3 +242,112 @@
   };
 
 })();
+
+/* ======================================================================================
+   STOCKAGE « UNE CHEMISE PAR MOIS » (schema 2)
+   Un SDE = un document principal (abonnés, réglages, logo…) + un document par mois
+   (relevés, paiements, dépenses et recettes de ce mois). L'application rassemble tout en
+   mémoire : les calculs ne changent pas. Fonctions pures, partagées avec la console admin.
+   ====================================================================================== */
+(function () {
+  "use strict";
+  var CHAMPS = ["releves", "paiements", "depensesLignes", "recettesDiverses"];
+  var SANS_PERIODE = "sans-periode";
+  var RE_PERIODE = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+  function periodeValide(p) { return typeof p === "string" && RE_PERIODE.test(p) ? p : null; }
+  function depuisDate(d) { return typeof d === "string" ? periodeValide(d.slice(0, 7)) : null; }
+  function cleReleve(r) { return periodeValide(r && r.periode) || depuisDate(r && r.date) || SANS_PERIODE; }
+  function cleLigne(x) { return periodeValide(x && x.periode) || depuisDate(x && x.date) || SANS_PERIODE; }
+  // Un paiement suit son relevé (même mois) ; à défaut, le mois de sa date
+  function clePaiement(p, relevesParId) {
+    var r = p && p.releveId != null ? relevesParId[p.releveId] : null;
+    return (r ? cleReleve(r) : null) || depuisDate(p && p.date) || SANS_PERIODE;
+  }
+  function chemiseVide() { return { releves: [], paiements: [], depensesLignes: [], recettesDiverses: [] }; }
+
+  // data (ancien format, tout dans un objet) -> { main, periodes }
+  function decouper(data) {
+    var main = {};
+    Object.keys(data || {}).forEach(function (k) { if (CHAMPS.indexOf(k) < 0) main[k] = data[k]; });
+    main.schema = 2;
+    var periodes = {};
+    function mettre(cle, champ, x) { (periodes[cle] = periodes[cle] || chemiseVide())[champ].push(x); }
+    var parId = {};
+    (data.releves || []).forEach(function (r) { if (r && r.id != null) parId[r.id] = r; });
+    (data.releves || []).forEach(function (r) { mettre(cleReleve(r), "releves", r); });
+    (data.paiements || []).forEach(function (p) { mettre(clePaiement(p, parId), "paiements", p); });
+    (data.depensesLignes || []).forEach(function (x) { mettre(cleLigne(x), "depensesLignes", x); });
+    (data.recettesDiverses || []).forEach(function (x) { mettre(cleLigne(x), "recettesDiverses", x); });
+    return { main: main, periodes: periodes };
+  }
+
+  function comparerCles(a, b) {
+    if (a === SANS_PERIODE) return b === SANS_PERIODE ? 0 : 1;
+    if (b === SANS_PERIODE) return -1;
+    return a < b ? -1 : a > b ? 1 : 0;
+  }
+  // { main, periodes } -> data (ancien format). Relevés : mois croissants ; paiements, dépenses, recettes : mois décroissants
+  function assembler(main, periodes) {
+    var data = {};
+    Object.keys(main || {}).forEach(function (k) { if (k !== "schema") data[k] = main[k]; });
+    var asc = Object.keys(periodes || {}).sort(comparerCles);
+    var desc = asc.filter(function (k) { return k !== SANS_PERIODE; }).reverse();
+    if (asc.indexOf(SANS_PERIODE) >= 0) desc.push(SANS_PERIODE);
+    function fusion(champ, cles) {
+      var out = [];
+      cles.forEach(function (k) { var a = periodes[k] && periodes[k][champ]; if (a && a.length) out = out.concat(a); });
+      return out;
+    }
+    data.releves = fusion("releves", asc);
+    data.paiements = fusion("paiements", desc);
+    data.depensesLignes = fusion("depensesLignes", desc);
+    data.recettesDiverses = fusion("recettesDiverses", desc);
+    return data;
+  }
+
+  // Représentation textuelle stable (clés triées) : deux contenus identiques donnent la même signature
+  function stable(v) {
+    if (v === null || typeof v !== "object") return JSON.stringify(v === undefined ? null : v);
+    if (Array.isArray(v)) return "[" + v.map(stable).join(",") + "]";
+    return "{" + Object.keys(v).sort().filter(function (k) { return v[k] !== undefined; }).map(function (k) { return JSON.stringify(k) + ":" + stable(v[k]); }).join(",") + "}";
+  }
+  function signaturesDe(periodes) {
+    var s = {}; Object.keys(periodes || {}).forEach(function (k) { s[k] = stable(periodes[k]); }); return s;
+  }
+  // Que faut-il écrire / supprimer pour passer de l'état en base (signatures) à ces chemises ?
+  function diff(signaturesEnBase, periodes) {
+    var ecrire = [], supprimer = [];
+    Object.keys(periodes).forEach(function (k) { if (signaturesEnBase[k] !== stable(periodes[k])) ecrire.push(k); });
+    Object.keys(signaturesEnBase || {}).forEach(function (k) { if (!(k in periodes)) supprimer.push(k); });
+    return { ecrire: ecrire, supprimer: supprimer };
+  }
+  function taille(o) { return JSON.stringify(o).length; }
+  function plusGrosDocument(main, periodes) {
+    var m = taille(main);
+    Object.keys(periodes || {}).forEach(function (k) { var t = taille(periodes[k]); if (t > m) m = t; });
+    return m;
+  }
+  function plusGrosDocumentDe(data) { var d = decouper(data); return plusGrosDocument(d.main, d.periodes); }
+
+  // Deux jeux de données ont-ils le même contenu (sans tenir compte de l'ordre des enregistrements) ?
+  function memeContenu(a, b) {
+    var ok = true, detail = [];
+    CHAMPS.forEach(function (c) {
+      var x = (a[c] || []).map(stable).sort(), y = (b[c] || []).map(stable).sort();
+      if (x.length !== y.length || x.some(function (v, i) { return v !== y[i]; })) { ok = false; detail.push(c + " : " + x.length + " ≠ " + y.length); }
+    });
+    var ka = Object.keys(a).filter(function (k) { return CHAMPS.indexOf(k) < 0 && k !== "schema"; });
+    var kb = Object.keys(b).filter(function (k) { return CHAMPS.indexOf(k) < 0 && k !== "schema"; });
+    var ensemble = {}; ka.concat(kb).forEach(function (k) { ensemble[k] = 1; });
+    Object.keys(ensemble).forEach(function (k) { if (stable(a[k]) !== stable(b[k])) { ok = false; detail.push("champ « " + k + " » différent"); } });
+    return { ok: ok, detail: detail };
+  }
+
+  window.Stockage = {
+    CHAMPS: CHAMPS, SANS_PERIODE: SANS_PERIODE,
+    decouper: decouper, assembler: assembler, stable: stable, signature: stable,
+    signaturesDe: signaturesDe, diff: diff, taille: taille,
+    plusGrosDocument: plusGrosDocument, plusGrosDocumentDe: plusGrosDocumentDe, memeContenu: memeContenu
+  };
+})();
